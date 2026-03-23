@@ -1,69 +1,69 @@
-# NZWL Zahlungsplanung & Liquiditätssteuerung
+# NZWL Payment Planning & Liquidity Management
 
-## Projektübersicht
-Dieses Projekt ist ein Dashboard zur **Zahlungsplanung und Liquiditätssteuerung** für die Neue ZWL Zahnradwerk Leipzig GmbH (NZWL) und ZWL Slovakia s.r.o. Das Dashboard ermöglicht es den Anwendern, offene Kreditoren- und Debitorenpositionen zu überwachen, Zahlungen anhand von Fälligkeiten und Skontofristen zu planen, Zahlungen nach Rolle freizugeben und die Liquidität pro Kalenderwoche (KW) im Vorfeld zu verfolgen.
+## Project Overview
+This project is a **payment planning and liquidity management dashboard** for Neue ZWL Zahnradwerk Leipzig GmbH (NZWL) and ZWL Slovakia s.r.o. The dashboard allows users to monitor open creditor and debitor positions, plan payments based on due dates and discount deadlines, approve payments based on specific roles, and proactively track liquidity per calendar week.
 
-Die Kernlogik für die Datenbereinigung und Berechnung von Fälligkeiten ist pythonbasiert und vom User Interface (Streamlit) getrennt. Die SAP Daten werden manuell aus Excel in den `data/input` Ordner importiert (100% lokale Ausführung).
+The core logic for data processing and due date calculations is Python-based and strictly separated from the User Interface (Streamlit). SAP data is manually imported from Excel exports into the `data/input` directory (100% local execution).
 
-## Funktionen (Phase 1 & 2)
-- **Import:** Manueller Import aller SAP Standard-Exceltabellen-Exporte.
-- **Berechnung & Priorisierung:** Automatische Berechnung von Fälligkeiten und Skontofristen.
-- **Multi-User & Freigabe-Workflow:** Zweistufiger Freigabeprozess (Vorbereiter -> Geschäftsleitung -> FiBu) mit separatem Login.
-- **Admin & Nutzerverwaltung:** Rollenbasierte Rechteverteilung durch Administratoren.
-- **Liquiditätstracking:** Liquiditätsansicht pro Kalenderwoche basierend auf offenen Debitoren und geplanten Zahlungsausgängen.
-- **Dashboard:** Kennzahlen, Zahlungsvorschlags-Charts und Limitierungskarten.
-- **Berichte:** Revisionsprotokoll (Audit Log) für alle durchgeführten Zahlungsfreigaben.
-- **Vollständige Lokalität:** Keine Cloud-Verbindungen, keine externe API – DSGVO-konform.
+## Features (Phase 1 & 2)
+- **Import:** Manual import of all SAP standard Excel exports.
+- **Calculation & Prioritization:** Automatic calculation of due dates and discount periods.
+- **Multi-User & Approval Workflow:** Two-step payment approval process (Preparer -> Management -> Accounting) with dedicated login system.
+- **Admin & User Management:** Role-based access control managed by administrators.
+- **Liquidity Tracking:** Weekly liquidity overview based on open debitors and planned outgoing payments.
+- **Dashboard:** Key metrics, payment proposal charts, and limitation cards.
+- **Reports:** Automated Audit Log (Revision Protocol) for all executed payment approvals.
+- **Full Localization:** No cloud connections, no external APIs – fully GDPR compliant.
 
-## Installation und Setup
+## Installation and Setup
 
-Dieses Dashboard basiert auf **Python 3.10+**. Stellen Sie sicher, dass Python installiert ist, bevor Sie fortfahren.
+This dashboard requires **Python 3.10+**. Please ensure Python is installed before proceeding.
 
-### Schnellstart (Empfohlen)
+### Quick Start (Recommended)
 
-**Für Mac / Linux:**
-1. Terminal öffnen und in den Projektordner navigieren.
-2. Das Skript ausführbar machen:
+**For Mac / Linux:**
+1. Open a terminal and navigate to the project folder.
+2. Make the script executable:
    ```bash
    chmod +x run.sh
    ```
-3. Das Skript ausführen, welches automatisch eine virtuelle Umgebung erstellt, Abhängigkeiten installiert und das Dashboard startet:
+3. Run the script (this automatically creates a virtual environment, installs dependencies, and starts the dashboard):
    ```bash
    ./run.sh
    ```
 
-**Für Windows:**
-1. Doppelklick auf die `run.bat` Datei im Projektordner. Das Skript richtet automatisch eine virtuelle Umgebung ein und startet die App.
+**For Windows:**
+1. Simply double-click the `run.bat` file in the project folder. The script will automatically set up the virtual environment and launch the app.
 
-### Manuelle Installation
+### Manual Installation
 
-1. Erstellen einer virtuellen Umgebung:
+1. Create a virtual environment:
    ```bash
    python -m venv venv
    ```
-2. Aktivieren der virtuellen Umgebung:
+2. Activate the virtual environment:
    - Mac/Linux: `source venv/bin/activate`
    - Windows: `venv\Scripts\activate`
-3. Abhängigkeiten installieren:
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-4. Dashboard starten:
+4. Start the dashboard:
    ```bash
    streamlit run dashboard/app.py
    ```
 
-## Ordnerstruktur
-- `core/`: Enthält die gesamte Python Business Logik (SAP Datenimport, Datenaufbereitung, Berechnungen und Datenmodelle).
-- `dashboard/`: Beinhaltet die Streamlit UI Dateien (App, Seiten-Layout, Charts und Tabellen-Komponenten).
-- `data/`: In diesem Verzeichnis befinden sich die Ordner `input` (für SAP-Excel-Dateien), `dummy` sowie der `output` für PDF- oder Excel-Exporte.
-- `tests/`: Beinhaltet die Pytest Unit- und Integrations-Tests.
+## Folder Structure
+- `core/`: Contains the entire Python business logic (SAP data import, processing, calculations, and data models).
+- `dashboard/`: Contains the Streamlit UI files (App, Page Layouts, Charts, and Table Components).
+- `data/`: Contains the `input` directory (for SAP Excel files), `dummy` data scripts, and `output` directory for PDF or Excel exports.
+- `tests/`: Contains Pytest unit and integration tests.
 
-## Gestaltungsrichtlinien
-Das Design hält sich streng an die Corporate Identity Vorgaben:
-- **Sekundärfarbe/Primärfarbe:** NZWL Dark Blue (#1F4E79), Mid Blue (#2E75B6).
-- **Gesellschafts-Buttons:** NZWL Leipzig (`Blau`) & ZWL Slovakia (`Grün`).
-- **Statusindikatoren:** Rot (überfällig), Orange (bald fällig), Grün (freigegeben), Blau (ausstehend).
+## Design Guidelines
+The design strictly adheres to the Corporate Identity rules:
+- **Primary/Secondary Colors:** NZWL Dark Blue (#1F4E79), Mid Blue (#2E75B6).
+- **Company Buttons:** NZWL Leipzig (`Blue`) & ZWL Slovakia (`Green`).
+- **Status Indicators:** Red (overdue), Orange (due soon), Green (approved), Blue (pending).
 
 ---
-*Internes Tool der NZWL Gruppe. Es erfolgt keine Cloud-Synchronisierung von Finanz- oder ERP-Daten.*
+*Internal tool for the NZWL Group. No financial or ERP data is synced to the cloud.*
