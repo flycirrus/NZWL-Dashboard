@@ -5,12 +5,14 @@ Dieses Projekt ist ein Dashboard zur **Zahlungsplanung und Liquiditätssteuerung
 
 Die Kernlogik für die Datenbereinigung und Berechnung von Fälligkeiten ist pythonbasiert und vom User Interface (Streamlit) getrennt. Die SAP Daten werden manuell aus Excel in den `data/input` Ordner importiert (100% lokale Ausführung).
 
-## Funktionen (Phase 1)
+## Funktionen (Phase 1 & 2)
 - **Import:** Manueller Import aller SAP Standard-Exceltabellen-Exporte.
 - **Berechnung & Priorisierung:** Automatische Berechnung von Fälligkeiten und Skontofristen.
+- **Multi-User & Freigabe-Workflow:** Zweistufiger Freigabeprozess (Vorbereiter -> Geschäftsleitung -> FiBu) mit separatem Login.
+- **Admin & Nutzerverwaltung:** Rollenbasierte Rechteverteilung durch Administratoren.
 - **Liquiditätstracking:** Liquiditätsansicht pro Kalenderwoche basierend auf offenen Debitoren und geplanten Zahlungsausgängen.
 - **Dashboard:** Kennzahlen, Zahlungsvorschlags-Charts und Limitierungskarten.
-- **Berichte:** Basis-Reportings und Revisionsprotokolle.
+- **Berichte:** Revisionsprotokoll (Audit Log) für alle durchgeführten Zahlungsfreigaben.
 - **Vollständige Lokalität:** Keine Cloud-Verbindungen, keine externe API – DSGVO-konform.
 
 ## Installation und Setup
