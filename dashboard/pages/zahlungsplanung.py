@@ -72,7 +72,7 @@ if role in ["vorbereiter", "admin"]:
                 update_status(row['Dokumentennummer'], "vorbereitet", row['Betrag'])
                 st.experimental_rerun()
 
-st.divider()
+st.markdown("---")
 
 # ==========================================
 # 2. GESCHÄFTSLEITUNG VIEW
@@ -97,7 +97,7 @@ if role in ["geschaeftsleitung", "admin"]:
                 update_status(row['Dokumentennummer'], "ausstehend", row['Betrag'])
                 st.experimental_rerun()
 
-st.divider()
+st.markdown("---")
 
 # ==========================================
 # 3. FiBu VIEW
@@ -119,7 +119,7 @@ if role in ["fibu", "admin"]:
                 update_status(row['Dokumentennummer'], "ausgezahlt", row['Betrag'])
                 st.experimental_rerun()
 
-st.divider()
+st.markdown("---")
 
 # Log summary for current users
 with st.expander("Aktueller Status der Datenbank"):

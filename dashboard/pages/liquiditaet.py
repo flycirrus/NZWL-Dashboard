@@ -25,7 +25,7 @@ with col2:
     if kreditoren_opos is not None and not kreditoren_opos.empty:
         st.dataframe(kreditoren_opos[['Kreditor-ID', 'Betrag', 'Fälligkeit', 'Kategorie']], use_container_width=True)
 
-st.divider()
+st.markdown("---")
 
 st.subheader("Liquiditäts-Trend (Schätzung)")
 if debitoren is not None and not debitoren.empty and kreditoren_opos is not None and not kreditoren_opos.empty:

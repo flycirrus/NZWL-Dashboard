@@ -32,7 +32,7 @@ col2.metric("Fällig diese Woche", f"{gesamtverbindlichkeiten * 0.3:,.2f} €")
 col3.metric("Skontopotenzial", f"{skontopotenzial:,.2f} €")
 col4.metric("Liquiditätsstatus", "Ausreichend", "🟢")
 
-st.divider()
+st.markdown("---")
 
 col_charts1, col_charts2 = st.columns(2)
 with col_charts1:
@@ -51,7 +51,7 @@ with col_charts2:
     else:
         st.info("Daten werden geladen...")
 
-st.divider()
+st.markdown("---")
 
 col_left, col_right = st.columns([2, 1])
 

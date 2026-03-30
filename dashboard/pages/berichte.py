@@ -14,7 +14,7 @@ if "audit_log" in st.session_state and len(st.session_state.audit_log) > 0:
 else:
     st.info("Bisher keine Aktionen protokolliert. Bitte logge dich als Vorbereiter/Geschäftsleitung ein und nimm Freigaben in 'Zahlungsplanung' vor.")
 
-st.divider()
+st.markdown("---")
 
 st.subheader("Wochen- und Monatsreport Export")
 st.button("Als Excel & PDF Exportieren (Demo-Funktion, erfordert Phase 2 Export-Logik)")

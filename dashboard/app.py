@@ -70,10 +70,10 @@ else:
             
         st.selectbox("Gesellschaft", ges_opts, key="selected_gesellschaft")
         
-        st.divider()
+        st.markdown("---")
         selection = st.radio("Navigation", list(pages.keys()))
         
-        st.divider()
+        st.markdown("---")
         if st.button("Logout"):
             logout()
             st.experimental_rerun()

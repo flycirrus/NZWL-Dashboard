@@ -19,7 +19,7 @@ In dieser Phase 2 dient es als Demo für das Rollenmodell (Vorbereiter, Geschäf
 users_df = pd.DataFrame.from_dict(MOCK_USERS, orient="index")
 st.dataframe(users_df, use_container_width=True)
 
-st.divider()
+st.markdown("---")
 
 with st.expander("Neuen Nutzer anlegen"):
     with st.form("new_user"):
