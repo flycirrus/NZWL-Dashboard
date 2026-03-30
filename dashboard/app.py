@@ -41,27 +41,18 @@ if st.session_state.user is None:
                 st.error("Ungültiger Benutzername oder Passwort.")
     st.info("Demo-Logins: admin/pwd, vorbereiter/pwd, leitung/pwd, fibu/pwd")
 else:
-    # Navigation configuration based on role
-    pages = {"Übersichten": []}
-    
-    pages["Übersichten"].append(st.Page("pages/dashboard.py", title="Dashboard", icon="📊", default=True))
-    pages["Übersichten"].append(st.Page("pages/offene_posten.py", title="Offene Posten", icon="📋"))
-    
-    pages["Planung & Liquidität"] = [
-        st.Page("pages/zahlungsplanung.py", title="Zahlungsplanung", icon="🗓️"),
-        st.Page("pages/liquiditaet.py", title="Liquidität", icon="💧"),
-    ]
-    
-    pages["Auswertungen"] = [
-        st.Page("pages/berichte.py", title="Berichte", icon="📈"),
-    ]
+    # Navigation configuration (absolute paths)
+    _pages_dir = Path(__file__).parent / "pages"
+    pages = {
+        "Dashboard":       str(_pages_dir / "dashboard.py"),
+        "Offene Posten":   str(_pages_dir / "offene_posten.py"),
+        "Zahlungsplanung": str(_pages_dir / "zahlungsplanung.py"),
+        "Liquidität":      str(_pages_dir / "liquiditaet.py"),
+        "Berichte":        str(_pages_dir / "berichte.py"),
+    }
     
     if st.session_state.role == "admin":
-        pages["Administration"] = [
-            st.Page("pages/admin.py", title="Nutzerverwaltung", icon="⚙️")
-        ]
-        
-    pg = st.navigation(pages)
+        pages["Nutzerverwaltung"] = str(_pages_dir / "admin.py")
 
     # Global Sidebar Elements
     with st.sidebar:
@@ -79,8 +70,15 @@ else:
             
         st.selectbox("Gesellschaft", ges_opts, key="selected_gesellschaft")
         
+        st.divider()
+        selection = st.radio("Navigation", list(pages.keys()))
+        
+        st.divider()
         if st.button("Logout"):
             logout()
             st.experimental_rerun()
 
-    pg.run()
+    # Load selected page
+    page_path = pages[selection]
+    with open(page_path, "r", encoding="utf-8") as f:
+        exec(compile(f.read(), page_path, "exec"), {"__file__": page_path})
