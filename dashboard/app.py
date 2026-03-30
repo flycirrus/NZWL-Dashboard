@@ -36,7 +36,7 @@ if st.session_state.user is None:
         
         if submit:
             if login(username, password):
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("Ungültiger Benutzername oder Passwort.")
     st.info("Demo-Logins: admin/pwd, vorbereiter/pwd, leitung/pwd, fibu/pwd")
@@ -81,6 +81,6 @@ else:
         
         if st.button("Logout"):
             logout()
-            st.rerun()
+            st.experimental_rerun()
 
     pg.run()

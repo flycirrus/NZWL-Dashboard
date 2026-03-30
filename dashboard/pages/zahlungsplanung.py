@@ -70,7 +70,7 @@ if role in ["vorbereiter", "admin"]:
             col3.write(row['Kategorie'])
             if col4.button("Vorbereiten", key=f"vor_{idx}"):
                 update_status(row['Dokumentennummer'], "vorbereitet", row['Betrag'])
-                st.rerun()
+                st.experimental_rerun()
 
 st.divider()
 
@@ -92,10 +92,10 @@ if role in ["geschaeftsleitung", "admin"]:
             col3.write(row['Kategorie'])
             if col4.button("Freigeben", key=f"frei_{idx}", type="primary"):
                 update_status(row['Dokumentennummer'], "freigegeben", row['Betrag'])
-                st.rerun()
+                st.experimental_rerun()
             if col5.button("Ablehnen", key=f"abl_{idx}"):
                 update_status(row['Dokumentennummer'], "ausstehend", row['Betrag'])
-                st.rerun()
+                st.experimental_rerun()
 
 st.divider()
 
@@ -117,7 +117,7 @@ if role in ["fibu", "admin"]:
             col3.write(row['Kategorie'])
             if col4.button("Auszahlen", key=f"ausg_{idx}", type="primary"):
                 update_status(row['Dokumentennummer'], "ausgezahlt", row['Betrag'])
-                st.rerun()
+                st.experimental_rerun()
 
 st.divider()
 
