@@ -59,12 +59,7 @@ with col_left:
     st.subheader("Letzte Aktivitäten (Ausstehend)")
     if opos is not None and not opos.empty:
         # Show top 10 items
-        st.dataframe(
-            opos.sort_values(by='Fälligkeit').head(10),
-            use_container_width=True,
-            hide_index=True
-        )
-    else:
+
         st.info("Keine Kreditoren-Posten gefunden.")
 
 with col_right:
