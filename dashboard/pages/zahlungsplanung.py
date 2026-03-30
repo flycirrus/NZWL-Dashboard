@@ -90,7 +90,7 @@ if role in ["geschaeftsleitung", "admin"]:
             col1.write(f"**{row['Kreditor-ID']}** | {row['Dokumentennummer']}")
             col2.write(f"**{row['Betrag']:,.2f} €**")
             col3.write(row['Kategorie'])
-            if col4.button("Freigeben", key=f"frei_{idx}", type="primary"):
+            if col4.button("Freigeben", key=f"frei_{idx}"):
                 update_status(row['Dokumentennummer'], "freigegeben", row['Betrag'])
                 st.experimental_rerun()
             if col5.button("Ablehnen", key=f"abl_{idx}"):
@@ -115,7 +115,7 @@ if role in ["fibu", "admin"]:
             col1.write(f"**{row['Kreditor-ID']}** | {row['Dokumentennummer']}")
             col2.write(f"**{row['Betrag']:,.2f} €**")
             col3.write(row['Kategorie'])
-            if col4.button("Auszahlen", key=f"ausg_{idx}", type="primary"):
+            if col4.button("Auszahlen", key=f"ausg_{idx}"):
                 update_status(row['Dokumentennummer'], "ausgezahlt", row['Betrag'])
                 st.experimental_rerun()
 

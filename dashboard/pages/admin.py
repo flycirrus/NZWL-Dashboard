@@ -27,6 +27,6 @@ with st.expander("Neuen Nutzer anlegen"):
         new_name = st.text_input("Voller Name")
         new_role = st.selectbox("Rolle", ["vorbereiter", "geschaeftsleitung", "fibu", "viewer", "admin"])
         new_ges = st.selectbox("Gesellschaft", ["beide", "nzwl", "zwl_sk"])
-        new_pwd = st.text_input("Passwort", type="password")
+        new_pwd = st.text_input("Passwort")
         if st.form_submit_button("Speichern"):
             st.success(f"Nutzer '{new_user}' erfolgreich angelegt (nur in dieser Demo-Session).")
