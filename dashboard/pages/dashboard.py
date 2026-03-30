@@ -38,7 +38,7 @@ col_charts1, col_charts2 = st.columns(2)
 with col_charts1:
     st.subheader("Liquiditätsübersicht")
     if debitoren is not None and not debitoren.empty:
-        st.bar_chart(data=debitoren, x='Fälligkeit', y='Betrag', use_container_width=True)
+        st.bar_chart(data=debitoren, x='Fälligkeit', y='Betrag')
     else:
         st.info("Daten werden geladen...")
 
@@ -47,7 +47,7 @@ with col_charts2:
     if opos is not None and not opos.empty:
         kategorien = opos.groupby('Kategorie')['Betrag'].sum().reset_index()
         # Fallback to bar chart if altair donut is complex
-        st.bar_chart(data=kategorien, x='Kategorie', y='Betrag', use_container_width=True)
+        st.bar_chart(data=kategorien, x='Kategorie', y='Betrag')
     else:
         st.info("Daten werden geladen...")
 
@@ -71,6 +71,6 @@ with col_right:
     st.subheader("Kreditoren Übersicht")
     kreditoren = data.get('kreditoren')
     if kreditoren is not None and not kreditoren.empty:
-        st.dataframe(kreditoren[['Kreditor-ID', 'Name', 'Gesellschaft']].head(8), use_container_width=True, hide_index=True)
+        st.dataframe(kreditoren[['Kreditor-ID', 'Name', 'Gesellschaft']].head(8))
     else:
         st.info("Keine Stammdaten gefunden.")

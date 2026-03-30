@@ -18,12 +18,12 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader("Liquiditäts-Zufluss (Debitoren)")
     if debitoren is not None and not debitoren.empty:
-        st.dataframe(debitoren, use_container_width=True)
+        st.dataframe(debitoren)
         
 with col2:
     st.subheader("Liquiditäts-Abfluss (Kreditoren)")
     if kreditoren_opos is not None and not kreditoren_opos.empty:
-        st.dataframe(kreditoren_opos[['Kreditor-ID', 'Betrag', 'Fälligkeit', 'Kategorie']], use_container_width=True)
+        st.dataframe(kreditoren_opos[['Kreditor-ID', 'Betrag', 'Fälligkeit', 'Kategorie']])
 
 st.markdown("---")
 
@@ -38,6 +38,6 @@ if debitoren is not None and not debitoren.empty and kreditoren_opos is not None
         debitoren[['Fälligkeit', 'Betrag', 'Typ']],
         kreditoren_opos[['Fälligkeit', 'Betrag', 'Typ']]
     ])
-    st.bar_chart(trend_data, x="Fälligkeit", y="Betrag", color="Typ", use_container_width=True)
+    st.bar_chart(trend_data, x="Fälligkeit", y="Betrag")
 else:
     st.info("Zu wenige Daten für den Trend Chart.")

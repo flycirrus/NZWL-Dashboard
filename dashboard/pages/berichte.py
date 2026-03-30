@@ -10,7 +10,7 @@ Hier werden sämtliche Änderungen an Zahlungsstatus revisionssicher über die S
 
 if "audit_log" in st.session_state and len(st.session_state.audit_log) > 0:
     audit_df = pd.DataFrame(st.session_state.audit_log)
-    st.dataframe(audit_df.sort_values(by="Zeitpunkt", ascending=False), use_container_width=True)
+    st.dataframe(audit_df.sort_values(by="Zeitpunkt", ascending=False))
 else:
     st.info("Bisher keine Aktionen protokolliert. Bitte logge dich als Vorbereiter/Geschäftsleitung ein und nimm Freigaben in 'Zahlungsplanung' vor.")
 

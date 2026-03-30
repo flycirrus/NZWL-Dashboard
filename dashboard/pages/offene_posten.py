@@ -28,6 +28,6 @@ if opos is not None and not opos.empty:
     if status_filter:
         filtered_opos = filtered_opos[filtered_opos['Status'].isin(status_filter)]
         
-    st.dataframe(filtered_opos, use_container_width=True)
+    st.dataframe(filtered_opos)
 else:
     st.warning("Keine Daten geladen.")
