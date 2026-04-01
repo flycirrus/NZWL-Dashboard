@@ -14,6 +14,16 @@ data_dir = os.path.join(Path(__file__).resolve().parent.parent.parent, 'data', '
 data = load_sap_files(data_dir)
 opos = data.get('opos_kreditoren')
 debitoren = data.get('opos_debitoren')
+kreditoren = data.get('kreditoren')
+
+selected_ges = st.session_state.get("selected_gesellschaft", "Beide")
+if selected_ges != "Beide":
+    if opos is not None and not opos.empty and 'Gesellschaft' in opos.columns:
+        opos = opos[opos['Gesellschaft'].str.upper() == selected_ges.upper()]
+    if debitoren is not None and not debitoren.empty and 'Gesellschaft' in debitoren.columns:
+        debitoren = debitoren[debitoren['Gesellschaft'].str.upper() == selected_ges.upper()]
+    if kreditoren is not None and not kreditoren.empty and 'Gesellschaft' in kreditoren.columns:
+        kreditoren = kreditoren[kreditoren['Gesellschaft'].str.upper() == selected_ges.upper()]
 
 if opos is not None and not opos.empty:
     gesamtverbindlichkeiten = opos['Betrag'].sum()
@@ -62,7 +72,7 @@ with col_left:
 
 with col_right:
     st.subheader("Kreditoren Übersicht")
-    kreditoren = data.get('kreditoren')
+    # kreditoren already loaded and filtered above
     if kreditoren is not None and not kreditoren.empty:
         st.dataframe(kreditoren[['Kreditor-ID', 'Name', 'Gesellschaft']].head(8))
     else:

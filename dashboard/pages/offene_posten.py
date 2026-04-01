@@ -12,6 +12,9 @@ data_dir = Path(__file__).resolve().parent.parent.parent / 'data' / 'input'
 data = load_sap_files(str(data_dir))
 opos = data.get('opos_kreditoren')
 
+selected_ges = st.session_state.get("selected_gesellschaft", "Beide")
+if selected_ges != "Beide" and opos is not None and not opos.empty and 'Gesellschaft' in opos.columns:
+    opos = opos[opos['Gesellschaft'].str.upper() == selected_ges.upper()]
 if opos is not None and not opos.empty:
     # Let users filter by status if they want
     st.subheader("Filter")

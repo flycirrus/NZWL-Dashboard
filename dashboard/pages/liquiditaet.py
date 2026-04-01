@@ -13,6 +13,12 @@ data = load_sap_files(str(data_dir))
 debitoren = data.get('opos_debitoren')
 kreditoren_opos = data.get('opos_kreditoren')
 
+selected_ges = st.session_state.get("selected_gesellschaft", "Beide")
+if selected_ges != "Beide":
+    if debitoren is not None and not debitoren.empty and 'Gesellschaft' in debitoren.columns:
+        debitoren = debitoren[debitoren['Gesellschaft'].str.upper() == selected_ges.upper()]
+    if kreditoren_opos is not None and not kreditoren_opos.empty and 'Gesellschaft' in kreditoren_opos.columns:
+        kreditoren_opos = kreditoren_opos[kreditoren_opos['Gesellschaft'].str.upper() == selected_ges.upper()]
 col1, col2 = st.columns(2)
 
 with col1:

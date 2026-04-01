@@ -21,12 +21,20 @@ st.markdown("""
         --primary-color: #1F4E79;
         --secondary-color: #2E75B6;
     }
+    /* Hide default Streamlit page navigation */
+    [data-testid="stSidebarNav"] {display: none !important;}
 </style>
 """, unsafe_allow_html=True)
 
 init_session_state()
 
 if st.session_state.user is None:
+    # Hide the sidebar entirely on the login screen
+    st.markdown("""
+    <style>
+        [data-testid="stSidebar"] {display: none !important;}
+    </style>
+    """, unsafe_allow_html=True)
     # Login Screen
     st.title("NZWL Dashboard Login")
     with st.form("login_form"):
@@ -36,7 +44,7 @@ if st.session_state.user is None:
         
         if submit:
             if login(username, password):
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Ungültiger Benutzername oder Passwort.")
     st.info("Demo-Logins: admin/pwd, vorbereiter/pwd, leitung/pwd, fibu/pwd")
@@ -76,7 +84,7 @@ else:
         st.markdown("---")
         if st.button("Logout"):
             logout()
-            st.experimental_rerun()
+            st.rerun()
 
     # Load selected page
     page_path = pages[selection]

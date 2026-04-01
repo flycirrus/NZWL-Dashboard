@@ -35,6 +35,9 @@ data_dir = Path(__file__).resolve().parent.parent.parent / 'data' / 'input'
 data = load_sap_files(str(data_dir))
 opos = data.get('opos_kreditoren')
 
+selected_ges = st.session_state.get("selected_gesellschaft", "Beide")
+if selected_ges != "Beide" and opos is not None and not opos.empty and 'Gesellschaft' in opos.columns:
+    opos = opos[opos['Gesellschaft'].str.upper() == selected_ges.upper()]
 if opos is None or opos.empty:
     st.warning("Keine Daten gefunden. Bitte stellen Sie sicher, dass die Dummy-Dateien geladen wurden.")
     st.stop()
@@ -70,7 +73,7 @@ if role in ["vorbereiter", "admin"]:
             col3.write(row['Kategorie'])
             if col4.button("Vorbereiten", key=f"vor_{idx}"):
                 update_status(row['Dokumentennummer'], "vorbereitet", row['Betrag'])
-                st.experimental_rerun()
+                st.rerun()
 
 st.markdown("---")
 
@@ -92,10 +95,10 @@ if role in ["geschaeftsleitung", "admin"]:
             col3.write(row['Kategorie'])
             if col4.button("Freigeben", key=f"frei_{idx}"):
                 update_status(row['Dokumentennummer'], "freigegeben", row['Betrag'])
-                st.experimental_rerun()
+                st.rerun()
             if col5.button("Ablehnen", key=f"abl_{idx}"):
                 update_status(row['Dokumentennummer'], "ausstehend", row['Betrag'])
-                st.experimental_rerun()
+                st.rerun()
 
 st.markdown("---")
 
@@ -117,7 +120,7 @@ if role in ["fibu", "admin"]:
             col3.write(row['Kategorie'])
             if col4.button("Auszahlen", key=f"ausg_{idx}"):
                 update_status(row['Dokumentennummer'], "ausgezahlt", row['Betrag'])
-                st.experimental_rerun()
+                st.rerun()
 
 st.markdown("---")
 
