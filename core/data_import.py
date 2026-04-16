@@ -8,11 +8,11 @@ import os
 import pandas as pd
 import streamlit as st
 
-@st.cache(allow_output_mutation=True)
+@st.cache_data
 def load_sap_files(path: str) -> dict:
     """
     Imports all SAP export files from the specified path and returns a dictionary of DataFrames.
-    Uses st.cache to prevent reloading the Excel files on every UI interaction.
+    Uses st.cache_data to prevent reloading the Excel files on every UI interaction.
     """
     data = {}
     files = {
