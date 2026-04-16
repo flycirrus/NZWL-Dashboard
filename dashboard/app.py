@@ -37,6 +37,67 @@ if st.session_state.user is None:
     """, unsafe_allow_html=True)
     # Login Screen
     st.title("NZWL Dashboard Login")
+
+    # ── Demo / Under-Construction Banner ──────────────────────────────────────
+    st.markdown("""
+    <div style="
+        border: 3px solid #F59E0B;
+        border-radius: 10px;
+        background: repeating-linear-gradient(
+            -45deg,
+            #FEF3C7,
+            #FEF3C7 14px,
+            #FFFBEB 14px,
+            #FFFBEB 28px
+        );
+        padding: 0;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(245,158,11,0.25);
+    ">
+        <div style="
+            background: #F59E0B;
+            color: #1C1917;
+            text-align: center;
+            font-weight: 800;
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            padding: 4px 0;
+        ">⚠️ &nbsp; ACHTUNG &nbsp; ⚠️</div>
+        <div style="
+            background: rgba(255,255,255,0.82);
+            padding: 16px 24px;
+            text-align: center;
+        ">
+            <span style="font-size: 1.6rem;">🚧</span>
+            <span style="
+                display: block;
+                font-size: 1.15rem;
+                font-weight: 700;
+                color: #92400E;
+                margin: 4px 0 2px;
+                letter-spacing: 0.03em;
+            ">DEMO-SYSTEM · IN ENTWICKLUNG</span>
+            <span style="
+                font-size: 0.9rem;
+                color: #78350F;
+            ">Dieses System befindet sich im Testbetrieb. &nbsp;|&nbsp; Testing &amp; Development only — not for productive use.</span>
+        </div>
+        <div style="
+            background: #F59E0B;
+            color: #1C1917;
+            text-align: center;
+            font-weight: 800;
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            padding: 4px 0;
+        ">🔧 &nbsp; TOOL UNDER CONSTRUCTION &nbsp; 🔧</div>
+    </div>
+    """, unsafe_allow_html=True)
+    # ──────────────────────────────────────────────────────────────────────────
+
     with st.form("login_form"):
         username = st.text_input("Benutzername")
         password = st.text_input("Passwort", type="password")
