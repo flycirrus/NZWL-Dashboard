@@ -143,6 +143,9 @@ else:
         selection = st.radio("Navigation", list(pages.keys()))
         
         st.markdown("---")
+        if st.button("🗑️ Cache leeren"):
+            st.cache_data.clear()
+            st.rerun()
         if st.button("Logout"):
             logout()
             st.rerun()
