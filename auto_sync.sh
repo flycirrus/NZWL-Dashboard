@@ -40,7 +40,7 @@ echo ""
 
 # ---- SCHRITT 2: App starten ----
 echo -e "${GREEN}🚀 Starte App...${NC}"
-source .venv/bin/activate 2>/dev/null || true
+source venv/bin/activate 2>/dev/null || source .venv/bin/activate 2>/dev/null || true
 streamlit run dashboard/app.py &
 APP_PID=$!
 echo -e "${GREEN}   App läuft (PID: $APP_PID)${NC}"
