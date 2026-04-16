@@ -3,28 +3,27 @@ chcp 65001 >nul
 setlocal EnableDelayedExpansion
 
 :: ============================================================
-::  NZWL Dashboard — Windows Server Deployment Script
-::  Folgt der Verzeichnisstruktur aus NZWL_Server_Spezifikationen
+::  NZWL Dashboard - Windows Server Deployment Script
 ::
 ::  Struktur:
 ::    C:\nzwl\
-::    ├── app\            (Git-Clone)
-::    ├── venv\           (Python Virtual Environment)
-::    ├── data\
-::    │   ├── input\      (SAP-Exports)
-::    │   ├── dummy\
-::    │   └── output\
-::    ├── logs\
-::    ├── backups\
-::    └── config\         (.env etc.)
+::      app\          (Git-Clone des Repositories)
+::      venv\         (Python Virtual Environment)
+::      data\
+::        input\      (SAP-Exports ablegen)
+::        dummy\
+::        output\
+::      logs\
+::      backups\
+::      config\       (.env etc.)
 :: ============================================================
 
-title NZWL Dashboard — Server Deployment
+title NZWL Dashboard - Server Deployment
 
 echo.
 echo ============================================================
 echo   NZWL Zahlungsplanung - Windows Server Deployment
-echo   Verzeichnis: C:\nzwl
+echo   Zielverzeichnis: C:\nzwl
 echo ============================================================
 echo.
 
@@ -65,7 +64,6 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo [OK]   Python gefunden.
 
-:: Python-Version pruefen
 for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do set PYVER=%%v
 echo [OK]   Python Version: %PYVER%
 echo.
@@ -75,23 +73,24 @@ echo.
 :: ============================================================
 echo [INFO] Lege Verzeichnisstruktur an...
 
-if not exist "%BASE_DIR%"    mkdir "%BASE_DIR%"
-if not exist "%DATA_DIR%\input"  mkdir "%DATA_DIR%\input"
-if not exist "%DATA_DIR%\dummy"  mkdir "%DATA_DIR%\dummy"
-if not exist "%DATA_DIR%\output" mkdir "%DATA_DIR%\output"
-if not exist "%LOG_DIR%"     mkdir "%LOG_DIR%"
-if not exist "%BACKUP_DIR%"  mkdir "%BACKUP_DIR%"
-if not exist "%CONFIG_DIR%"  mkdir "%CONFIG_DIR%"
+if not exist "%BASE_DIR%"         mkdir "%BASE_DIR%"
+if not exist "%DATA_DIR%\input"   mkdir "%DATA_DIR%\input"
+if not exist "%DATA_DIR%\dummy"   mkdir "%DATA_DIR%\dummy"
+if not exist "%DATA_DIR%\output"  mkdir "%DATA_DIR%\output"
+if not exist "%LOG_DIR%"          mkdir "%LOG_DIR%"
+if not exist "%BACKUP_DIR%"       mkdir "%BACKUP_DIR%"
+if not exist "%CONFIG_DIR%"       mkdir "%CONFIG_DIR%"
 
-echo [OK]   C:\nzwl\
-echo        ├── app\            (Git-Clone)
-echo        ├── venv\           (Python venv)
-echo        ├── data\input\     (SAP-Exports)
-echo        ├── data\dummy\
-echo        ├── data\output\
-echo        ├── logs\
-echo        ├── backups\
-echo        └── config\         (.env etc.)
+echo [OK]   Verzeichnisstruktur angelegt:
+echo        C:\nzwl\
+echo          app\          (Git-Clone)
+echo          venv\         (Python venv)
+echo          data\input\   (SAP-Exports)
+echo          data\dummy\
+echo          data\output\
+echo          logs\
+echo          backups\
+echo          config\       (.env etc.)
 echo.
 
 :: ============================================================
@@ -107,7 +106,8 @@ if exist "%APP_DIR%\.git" (
     echo [OK]   Applikationscode aktualisiert.
 ) else (
     echo [INFO] Klone Repository von GitHub nach app\ ...
-    git clone -b %BRANCH% %REPO_URL% "%APP_DIR%"
+    echo        URL: %REPO_URL%
+    git clone -b %BRANCH% "%REPO_URL%" "%APP_DIR%"
     if %ERRORLEVEL% NEQ 0 (
         echo [FAIL] Git clone fehlgeschlagen!
         echo        Stelle sicher, dass du Zugang zum Repository hast.
@@ -120,7 +120,7 @@ if exist "%APP_DIR%\.git" (
 echo.
 
 :: ============================================================
-::  SCHRITT 3: Virtuelle Umgebung anlegen (ausserhalb von app/)
+::  SCHRITT 3: Virtuelle Umgebung anlegen
 :: ============================================================
 echo [INFO] Pruefe virtuelle Umgebung...
 
@@ -163,7 +163,6 @@ if not exist "%APP_DIR%\.streamlit" (
     mkdir "%APP_DIR%\.streamlit"
 )
 
-:: Server-Config fuer headless + Netzwerkzugriff
 (
     echo [server]
     echo port = %SERVICE_PORT%
@@ -178,12 +177,12 @@ echo [OK]   Streamlit-Konfiguration geschrieben.
 echo.
 
 :: ============================================================
-::  SCHRITT 6: .env Template anlegen (falls nicht vorhanden)
+::  SCHRITT 6: .env Template anlegen
 :: ============================================================
 if not exist "%CONFIG_DIR%\.env" (
     echo [INFO] Erstelle .env Template in config\ ...
     (
-        echo # NZWL Dashboard — Umgebungsvariablen
+        echo # NZWL Dashboard - Umgebungsvariablen
         echo # Bitte anpassen!
         echo.
         echo # MariaDB (optional, fuer spaetere DB-Anbindung)
@@ -212,9 +211,13 @@ echo.
 ::  SCHRITT 7: Setup-Skript ausfuehren (Systemcheck)
 :: ============================================================
 echo [INFO] Fuehre Systemcheck aus...
-pushd "%APP_DIR%"
-"%VENV_DIR%\Scripts\python.exe" setup_nzwl.py --check-only
-popd
+if exist "%APP_DIR%\setup_nzwl.py" (
+    pushd "%APP_DIR%"
+    "%VENV_DIR%\Scripts\python.exe" setup_nzwl.py --check-only
+    popd
+) else (
+    echo [WARN] setup_nzwl.py nicht gefunden - Systemcheck uebersprungen.
+)
 echo.
 
 :: ============================================================
@@ -225,7 +228,7 @@ echo.
 echo   NZWL Dashboard wird gestartet!
 echo.
 echo   Lokal:     http://localhost:%SERVICE_PORT%/NZWL-ZP-MVP
-echo   Netzwerk:  http://^<SERVER-IP^>:%SERVICE_PORT%/NZWL-ZP-MVP
+echo   Netzwerk:  http://<SERVER-IP>:%SERVICE_PORT%/NZWL-ZP-MVP
 echo.
 echo   Verzeichnisse:
 echo     App:     %APP_DIR%
