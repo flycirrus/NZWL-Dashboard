@@ -21,6 +21,10 @@ data/output/*
 !data/input/.gitkeep
 !data/output/.gitkeep
 !data/dummy/.gitkeep
+# Allow SAP demo/sample Excel files to be versioned
+!data/input/SAP_OPOS_Vertrieb.xlsx
+!data/input/SAP_Stammdaten_Kreditoren.xlsx
+!data/input/SAP_offen_Posten_Debitoren.xlsx
 
 # OS generated files
 .DS_Store
