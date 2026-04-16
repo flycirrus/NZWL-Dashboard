@@ -113,7 +113,7 @@ echo.
 
 pushd "%INSTALL_DIR%"
 call venv\Scripts\activate.bat
-streamlit run dashboard\app.py --server.port %SERVICE_PORT% --server.headless true
+streamlit run dashboard\app.py --server.port %SERVICE_PORT% --server.headless true --server.baseUrlPath NZWL-ZP-MVP
 popd
 
 pause

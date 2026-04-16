@@ -81,6 +81,6 @@ echo.
 echo [INFO] Dashboard gestartet um %time% >> "%LOG_FILE%"
 
 call venv\Scripts\activate.bat
-streamlit run dashboard\app.py --server.port %SERVICE_PORT% --server.headless true --server.address 0.0.0.0
+streamlit run dashboard\app.py --server.port %SERVICE_PORT% --server.headless true --server.address 0.0.0.0 --server.baseUrlPath NZWL-ZP-MVP
 
 popd
