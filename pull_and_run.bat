@@ -12,7 +12,7 @@ setlocal EnableDelayedExpansion
 title NZWL Dashboard — Pull ^& Run
 
 :: ----- Konfiguration -----
-set "INSTALL_DIR=C:\NZWL-Dashboard"
+set "INSTALL_DIR=C:\NZWL-ZP-MVP"
 set "BRANCH=main"
 set "SERVICE_PORT=8501"
 set "LOG_DIR=%INSTALL_DIR%\logs"

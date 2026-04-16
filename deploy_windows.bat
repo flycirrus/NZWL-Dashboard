@@ -18,7 +18,7 @@ echo.
 :: ----- Konfiguration (hier anpassen!) -----
 set "REPO_URL=https://github.com/flycirrus/NZWL-Dashboard.git"
 set "BRANCH=main"
-set "INSTALL_DIR=C:\NZWL-Dashboard"
+set "INSTALL_DIR=C:\NZWL-ZP-MVP"
 set "SERVICE_PORT=8501"
 
 :: ----- Schritt 0: Prüfe Voraussetzungen -----
