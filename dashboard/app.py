@@ -113,11 +113,12 @@ else:
     # Navigation configuration (absolute paths)
     _pages_dir = Path(__file__).parent / "pages"
     pages = {
-        "Dashboard":       str(_pages_dir / "dashboard.py"),
-        "Offene Posten":   str(_pages_dir / "offene_posten.py"),
-        "Zahlungsplanung": str(_pages_dir / "zahlungsplanung.py"),
-        "Liquidität":      str(_pages_dir / "liquiditaet.py"),
-        "Berichte":        str(_pages_dir / "berichte.py"),
+        "Dashboard":        str(_pages_dir / "dashboard.py"),
+        "Faelligkeiten":    str(_pages_dir / "faelligkeiten.py"),
+        "Kreditor-Debitor": str(_pages_dir / "offene_posten.py"),
+        "Zahlungsplanung":  str(_pages_dir / "zahlungsplanung.py"),
+        "Liquiditaet":      str(_pages_dir / "liquiditaet.py"),
+        "Berichte":         str(_pages_dir / "berichte.py"),
     }
     
     if st.session_state.role == "admin":

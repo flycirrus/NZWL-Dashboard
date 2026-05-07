@@ -1,35 +1,93 @@
 """
-SAP Data Import and Consolidation Module.
+NZWL Daten-Import — Dual-Mode
+  Windows (Server): liest direkt aus MariaDB
+  Mac (lokal):      liest JSON-Dateien aus data/input/
 
-This module handles the manual loading of SAP export Excel files from the `/data/input/` directory.
-It does not connect directly to SAP or any external API.
+Gibt immer ein Dict mit drei DataFrames zurueck:
+  - "detail"      (ergebnis_detail)
+  - "uebersicht"  (ergebnis_uebersicht)
+  - "statistik"   (ergebnis_statistik)
 """
 import os
+import json
 import pandas as pd
 import streamlit as st
+from pathlib import Path
 
-@st.cache_data
-def load_sap_files(path: str) -> dict:
-    """
-    Imports all SAP export files from the specified path and returns a dictionary of DataFrames.
-    Uses st.cache_data to prevent reloading the Excel files on every UI interaction.
-    """
-    data = {}
-    files = {
-        'kreditoren': 'SAP_Stammdaten_Kreditoren.xlsx',
-        'opos_kreditoren': 'SAP_OPOS_Vertrieb.xlsx',
-        'opos_debitoren': 'SAP_offen_Posten_Debitoren.xlsx'
-    }
-    
-    for key, filename in files.items():
-        filepath = os.path.join(path, filename)
-        if os.path.exists(filepath):
-            try:
-                data[key] = pd.read_excel(filepath)
-            except Exception as e:
-                print(f"Error reading {filepath}: {e}")
-                data[key] = pd.DataFrame()
+TABELLEN = ["ergebnis_detail", "ergebnis_uebersicht", "ergebnis_statistik"]
+
+MARIADB_CONFIG = {
+    "host": "10.1.60.189",
+    "port": 3306,
+    "database": "cashflowctrl",
+}
+
+MARIADB_USERS = [
+    {"user": "nzwl_dev", "password": "LOdYr7_38.Wu"},
+    {"user": "nzwl_app", "password": "0_8WmKck_SA1"},
+]
+
+
+def _lade_aus_mariadb():
+    import pymysql
+    conn = None
+    for creds in MARIADB_USERS:
+        try:
+            conn = pymysql.connect(
+                host=MARIADB_CONFIG["host"],
+                port=MARIADB_CONFIG["port"],
+                database=MARIADB_CONFIG["database"],
+                user=creds["user"],
+                password=creds["password"],
+            )
+            break
+        except Exception:
+            continue
+
+    if conn is None:
+        return {
+            "detail": pd.DataFrame(),
+            "uebersicht": pd.DataFrame(),
+            "statistik": pd.DataFrame(),
+        }
+
+    daten = {}
+    keys = ["detail", "uebersicht", "statistik"]
+    for tabelle, key in zip(TABELLEN, keys):
+        try:
+            daten[key] = pd.read_sql(f"SELECT * FROM {tabelle}", conn)
+        except Exception:
+            daten[key] = pd.DataFrame()
+
+    conn.close()
+    return daten
+
+
+def _lade_aus_json(pfad):
+    daten = {}
+    keys = ["detail", "uebersicht", "statistik"]
+    for tabelle, key in zip(TABELLEN, keys):
+        datei = os.path.join(pfad, f"{tabelle}.json")
+        if os.path.exists(datei):
+            with open(datei, "r", encoding="utf-8") as f:
+                records = json.load(f)
+            daten[key] = pd.DataFrame(records)
         else:
-            data[key] = pd.DataFrame()
-            
-    return data
+            daten[key] = pd.DataFrame()
+    return daten
+
+
+@st.cache_data(ttl=300)
+def lade_ergebnis_daten(json_pfad: str = None) -> dict:
+    """
+    Laedt die Ergebnis-Daten je nach Betriebssystem.
+    Windows: MariaDB | Mac: JSON aus json_pfad
+    """
+    if os.name == "nt":
+        return _lade_aus_mariadb()
+    else:
+        if json_pfad is None:
+            json_pfad = str(Path(__file__).resolve().parent.parent / "data" / "input")
+        return _lade_aus_json(json_pfad)
+
+
