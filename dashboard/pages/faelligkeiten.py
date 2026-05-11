@@ -1,10 +1,33 @@
 import streamlit as st
 import sys
+import os
+import json
 import pandas as pd
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from core.data_import import lade_ergebnis_daten
+
+# ── Ampel Speicher-Logik ──────────────────────────────────────────────────────
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+AMPEL_FILE = os.path.join(BASE_DIR, "data", "output", "ampel_status.json")
+
+def load_ampel_status():
+    if os.path.exists(AMPEL_FILE):
+        try:
+            with open(AMPEL_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_ampel_status(status_dict):
+    os.makedirs(os.path.dirname(AMPEL_FILE), exist_ok=True)
+    with open(AMPEL_FILE, "w", encoding="utf-8") as f:
+        json.dump(status_dict, f, ensure_ascii=False, indent=2)
+
+ampel_status = load_ampel_status()
+AMPEL_OPTIONS = ["🔴 Stop", "🟡 Prüfung", "🟢 Freigegeben"]
 
 
 def _fmt_num(value: float, decimals: int = 2) -> str:
@@ -120,11 +143,52 @@ anzeige = belege_filtered[[
     "offener_betrag", "debitor_name", "bom_parent"
 ]].copy()
 
+# Ampel-Status (Dropdown) hinzufügen, Default "🔴 Stop"
+anzeige["Status"] = anzeige["buchhaltungsbeleg"].apply(lambda b: ampel_status.get(str(b), "🔴 Stop"))
+
 anzeige["nettofaelligkeit"] = anzeige["nettofaelligkeit"].dt.strftime("%d.%m.%Y")
 anzeige["offener_betrag"] = anzeige["offener_betrag"].apply(fmt_eur)
 
-anzeige.columns = ["Faellig am", "Beleg", "Kreditor", "Offener Betrag", "Endkunden", "Fertigteile"]
-st.dataframe(anzeige, use_container_width=True, hide_index=True)
+# Spalten-Reihenfolge: Status ganz vorne
+anzeige = anzeige[["Status", "nettofaelligkeit", "buchhaltungsbeleg", "kreditor_name", "offener_betrag", "debitor_name", "bom_parent"]]
+anzeige.columns = ["Status", "Faellig am", "Beleg", "Kreditor", "Offener Betrag", "Endkunden", "Fertigteile"]
+
+st.caption("💡 **Tipp:** Du kannst den Status (Ampel) direkt in der Tabelle anklicken und ändern.")
+edited_df = st.data_editor(
+    anzeige,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "Status": st.column_config.SelectboxColumn(
+            "Status",
+            help="Ampel für den Freigabeprozess",
+            width="medium",
+            options=AMPEL_OPTIONS,
+            required=True
+        ),
+        "Faellig am": st.column_config.Column(disabled=True),
+        "Beleg": st.column_config.Column(disabled=True),
+        "Kreditor": st.column_config.Column(disabled=True),
+        "Offener Betrag": st.column_config.Column(disabled=True),
+        "Endkunden": st.column_config.Column(disabled=True),
+        "Fertigteile": st.column_config.Column(disabled=True),
+    },
+    key=f"ampel_editor_{zeitraum_filter}" # Eigener Key, damit der Wechsel des Filters nicht abstürzt
+)
+
+# Prüfen, ob sich ein Status geändert hat
+changed = False
+for index, row in edited_df.iterrows():
+    beleg_id = str(row["Beleg"])
+    new_status = row["Status"]
+    if ampel_status.get(beleg_id, "🔴 Stop") != new_status:
+        ampel_status[beleg_id] = new_status
+        changed = True
+
+if changed:
+    save_ampel_status(ampel_status)
+    # Erfolgsmeldung zeigen (verschwindet bei Interaktion)
+    st.toast("Status gespeichert!", icon="💾")
 
 # ── Aufschluesselung pro Kreditor ─────────────────────────────────────────────
 st.markdown("---")

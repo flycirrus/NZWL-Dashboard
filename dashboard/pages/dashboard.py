@@ -14,6 +14,7 @@ import os
 import subprocess
 
 col_kern, col_refresh, col_ts = st.columns([1, 1, 2])
+ausgabe_container = st.empty() # Container in voller Breite für Terminal-Output
 
 with col_kern:
     if os.name == "nt":
@@ -24,7 +25,6 @@ with col_kern:
                 st.error(f"Fehler: Das Skript wurde nicht gefunden!\nPfad: `{skript}`\nBitte den Pfad auf dem Server prüfen.")
             else:
                 st.info("Starte Kernlogik...")
-                ausgabe_container = st.empty()
                 log_text = ""
                 
                 with st.spinner("Kernlogik läuft — bitte warten (Live-Ausgabe unten)..."):
