@@ -7,15 +7,23 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from core.data_import import lade_ergebnis_daten
 
 
-def fmt_eur(betrag):
-    return f"{betrag:,.2f} EUR".replace(",", "X").replace(".", ",").replace("X", ".")
+def _fmt_num(value: float, decimals: int = 2) -> str:
+    fmt = f"{value:,.{decimals}f}"
+    return fmt.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-def fmt_mio(betrag):
-    if abs(betrag) >= 1_000_000:
-        return f"{betrag / 1_000_000:,.1f} Mio. EUR".replace(",", "X").replace(".", ",").replace("X", ".")
-    elif abs(betrag) >= 1_000:
-        return f"{betrag / 1_000:,.1f} Tsd. EUR".replace(",", "X").replace(".", ",").replace("X", ".")
+def fmt_eur(betrag: float) -> str:
+    return f"{_fmt_num(betrag, 2)} €"
+
+
+def fmt_mio(betrag: float) -> str:
+    abs_b = abs(betrag)
+    if abs_b >= 1_000_000_000:
+        return f"{_fmt_num(betrag / 1_000_000_000, 2)} Mrd. €"
+    if abs_b >= 1_000_000:
+        return f"{_fmt_num(betrag / 1_000_000, 2)} M€"
+    if abs_b >= 1_000:
+        return f"{_fmt_num(betrag / 1_000, 1)} T€"
     return fmt_eur(betrag)
 
 

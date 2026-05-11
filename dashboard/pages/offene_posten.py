@@ -7,8 +7,24 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from core.data_import import lade_ergebnis_daten
 
 
-def fmt_eur(betrag):
-    return f"{betrag:,.2f} EUR".replace(",", "X").replace(".", ",").replace("X", ".")
+def _fmt_num(value: float, decimals: int = 2) -> str:
+    fmt = f"{value:,.{decimals}f}"
+    return fmt.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def fmt_eur(betrag: float) -> str:
+    return f"{_fmt_num(betrag, 2)} €"
+
+
+def fmt_mio(betrag: float) -> str:
+    abs_b = abs(betrag)
+    if abs_b >= 1_000_000_000:
+        return f"{_fmt_num(betrag / 1_000_000_000, 2)} Mrd. €"
+    if abs_b >= 1_000_000:
+        return f"{_fmt_num(betrag / 1_000_000, 2)} M€"
+    if abs_b >= 1_000:
+        return f"{_fmt_num(betrag / 1_000, 1)} T€"
+    return fmt_eur(betrag)
 
 
 st.title("Kreditor-Debitor Detail")
@@ -54,7 +70,7 @@ belege = gefiltert["buchhaltungsbeleg"].nunique() if "buchhaltungsbeleg" in gefi
 c1.metric("Buchungsbelege", f"{belege:,}")
 c2.metric("Kreditoren", gefiltert["kreditor"].nunique() if "kreditor" in gefiltert.columns else 0)
 c3.metric("Endkunden", gefiltert["debitor"].nunique() if "debitor" in gefiltert.columns else 0)
-c4.metric("Offener Betrag", fmt_eur(betrag))
+c4.metric("Offener Betrag", fmt_mio(betrag))
 
 # ── Ansicht waehlen ───────────────────────────────────────────────────────────
 st.markdown("---")
@@ -71,7 +87,7 @@ if ansicht == "Pro Buchungsbeleg (gruppiert)":
             "debitor_name": lambda x: ", ".join(sorted(set(str(v) for v in x.dropna()))),
         })
         gruppiert = gruppiert.sort_values("offener_betrag", ascending=False)
-        gruppiert["offener_betrag_fmt"] = gruppiert["offener_betrag"].apply(fmt_eur)
+        gruppiert["offener_betrag_fmt"] = gruppiert["offener_betrag"].apply(fmt_mio)
 
         anzeige = gruppiert[["buchhaltungsbeleg", "kreditor_name", "offener_betrag_fmt",
                               "rohteil", "bom_parent", "debitor_name"]].copy()
@@ -85,7 +101,7 @@ else:
                                     "rohteil", "bom_parent", "debitor_name", "quelle"] if c in gefiltert.columns]
     anzeige = gefiltert[anzeige_spalten].copy().sort_values("offener_betrag", ascending=False)
     if "offener_betrag" in anzeige.columns:
-        anzeige["offener_betrag"] = anzeige["offener_betrag"].apply(fmt_eur)
+        anzeige["offener_betrag"] = anzeige["offener_betrag"].apply(fmt_mio)
     anzeige.columns = [c.replace("_", " ").title() for c in anzeige.columns]
     st.dataframe(anzeige, use_container_width=True, hide_index=True)
 

@@ -10,9 +10,31 @@ Gibt immer ein Dict mit drei DataFrames zurueck:
 """
 import os
 import json
+import re
 import pandas as pd
 import streamlit as st
 from pathlib import Path
+
+
+def _normalize_col(name: str) -> str:
+    """Spaltenname normalisieren: Umlaute ersetzen, Kleinbuchstaben, Leerzeichen→Unterstrich."""
+    name = str(name)
+    replacements = {
+        "ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss",
+        "Ä": "ae", "Ö": "oe", "Ü": "ue",
+    }
+    for umlaut, ascii_eq in replacements.items():
+        name = name.replace(umlaut, ascii_eq)
+    name = name.lower()
+    name = re.sub(r"[\s\-]+", "_", name)  # Leerzeichen / Bindestriche → _
+    name = re.sub(r"[^a-z0-9_]", "", name)  # sonstige Sonderzeichen entfernen
+    return name
+
+
+def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Alle Spaltennamen eines DataFrames normalisieren."""
+    df.columns = [_normalize_col(c) for c in df.columns]
+    return df
 
 TABELLEN = ["ergebnis_detail", "ergebnis_uebersicht", "ergebnis_statistik"]
 
@@ -55,7 +77,8 @@ def _lade_aus_mariadb():
     keys = ["detail", "uebersicht", "statistik"]
     for tabelle, key in zip(TABELLEN, keys):
         try:
-            daten[key] = pd.read_sql(f"SELECT * FROM {tabelle}", conn)
+            df = pd.read_sql(f"SELECT * FROM {tabelle}", conn)
+            daten[key] = _normalize_columns(df)
         except Exception:
             daten[key] = pd.DataFrame()
 
@@ -71,7 +94,8 @@ def _lade_aus_json(pfad):
         if os.path.exists(datei):
             with open(datei, "r", encoding="utf-8") as f:
                 records = json.load(f)
-            daten[key] = pd.DataFrame(records)
+            df = pd.DataFrame(records)
+            daten[key] = _normalize_columns(df)
         else:
             daten[key] = pd.DataFrame()
     return daten

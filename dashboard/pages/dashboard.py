@@ -71,15 +71,25 @@ if not statistik.empty:
 
 
 # ── Hilfsfunktionen ──────────────────────────────────────────────────────────
-def fmt_eur(betrag):
-    return f"{betrag:,.2f} EUR".replace(",", "X").replace(".", ",").replace("X", ".")
+def _fmt_num(value: float, decimals: int = 2) -> str:
+    """Zahl auf Deutsch formatieren (Punkt = Tausender, Komma = Dezimal)."""
+    fmt = f"{value:,.{decimals}f}"
+    return fmt.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-def fmt_mio(betrag):
-    if abs(betrag) >= 1_000_000:
-        return f"{betrag / 1_000_000:,.1f} Mio. EUR".replace(",", "X").replace(".", ",").replace("X", ".")
-    elif abs(betrag) >= 1_000:
-        return f"{betrag / 1_000:,.1f} Tsd. EUR".replace(",", "X").replace(".", ",").replace("X", ".")
+def fmt_eur(betrag: float) -> str:
+    return f"{_fmt_num(betrag, 2)} €"
+
+
+def fmt_mio(betrag: float) -> str:
+    """Kompakte EUR-Darstellung: Mrd.€ / M€ / T€."""
+    abs_b = abs(betrag)
+    if abs_b >= 1_000_000_000:
+        return f"{_fmt_num(betrag / 1_000_000_000, 2)} Mrd. €"
+    if abs_b >= 1_000_000:
+        return f"{_fmt_num(betrag / 1_000_000, 2)} M€"
+    if abs_b >= 1_000:
+        return f"{_fmt_num(betrag / 1_000, 1)} T€"
     return fmt_eur(betrag)
 
 
@@ -112,18 +122,24 @@ col4.metric(
 
 st.markdown("---")
 
-# ── Faelligkeiten (Wochenansicht) ─────────────────────────────────────────────
+# ── Faelligkeiten (Wochenansicht) ─────────────────────────────────────────────────────
+df_faellig_week = pd.DataFrame()  # used later for chart filtering
+
 if not detail.empty and "nettofaelligkeit" in detail.columns:
     st.subheader("Faelligkeiten nach Woche")
-    st.caption("Was muss in den naechsten Wochen bezahlt werden?")
+    st.caption("Klicken zum Filtern der Diagramme unten.")
 
-    df_faellig = detail[["buchhaltungsbeleg", "kreditor_name", "offener_betrag", "nettofaelligkeit"]].copy()
-    df_faellig["nettofaelligkeit"] = pd.to_datetime(df_faellig["nettofaelligkeit"], errors="coerce")
-    df_faellig = df_faellig.dropna(subset=["nettofaelligkeit"])
-    df_faellig = df_faellig.drop_duplicates(subset=["buchhaltungsbeleg"])
+    _cols_needed = [c for c in ["buchhaltungsbeleg", "kreditor_name", "kreditor",
+                                 "offener_betrag", "nettofaelligkeit", "debitor_name", "debitor"]
+                    if c in detail.columns]
+    df_faellig_week = detail[_cols_needed].copy()
+    df_faellig_week["nettofaelligkeit"] = pd.to_datetime(df_faellig_week["nettofaelligkeit"], errors="coerce")
+    df_faellig_week = df_faellig_week.dropna(subset=["nettofaelligkeit"])
+    df_faellig_week_unique = df_faellig_week.drop_duplicates(subset=["buchhaltungsbeleg"])
 
     heute = pd.Timestamp.now().normalize()
-    df_faellig["woche"] = df_faellig["nettofaelligkeit"].apply(
+    df_faellig_week_unique = df_faellig_week_unique.copy()
+    df_faellig_week_unique["woche"] = df_faellig_week_unique["nettofaelligkeit"].apply(
         lambda d: "Ueberfaellig" if d < heute
         else "Diese Woche" if d < heute + pd.Timedelta(days=7)
         else "Naechste Woche" if d < heute + pd.Timedelta(days=14)
@@ -132,58 +148,109 @@ if not detail.empty and "nettofaelligkeit" in detail.columns:
     )
 
     wochen_order = ["Ueberfaellig", "Diese Woche", "Naechste Woche", "In 2 Wochen", "Spaeter"]
-    wochen_summe = df_faellig.groupby("woche")["offener_betrag"].sum().reindex(wochen_order, fill_value=0)
+    wochen_summe = df_faellig_week_unique.groupby("woche")["offener_betrag"].sum().reindex(wochen_order, fill_value=0)
 
-    cols = st.columns(len(wochen_order))
+    if "selected_woche" not in st.session_state:
+        st.session_state["selected_woche"] = "Alle"
+
+    # 5 Wochen-Spalten + 1 schmalere Spalte rechts für "Alle"
+    wk_cols = st.columns([1, 1, 1, 1, 1, 0.7])
     for i, woche in enumerate(wochen_order):
         betrag = wochen_summe.get(woche, 0)
-        cols[i].metric(woche, fmt_mio(betrag))
+        is_active = st.session_state["selected_woche"] == woche
+        wk_cols[i].metric(woche, fmt_mio(betrag))
+        btn_label = "Aktiv" if is_active else "Filtern"
+        if wk_cols[i].button(btn_label, key=f"btn_{woche}", use_container_width=True):
+            st.session_state["selected_woche"] = "Alle" if is_active else woche
+            st.rerun()
+
+    # "Alle" Knopf rechts — Dummy-Metric zum perfekten vertikalen Ausrichten
+    wk_cols[5].metric(" ", " ")
+    if wk_cols[5].button("Alle", key="btn_alle", use_container_width=True):
+        st.session_state["selected_woche"] = "Alle"
+        st.rerun()
+
+    selected_woche = st.session_state["selected_woche"]
 
     st.markdown("---")
 else:
     st.info("Faelligkeitsdaten werden nach dem naechsten Kernlogik-Lauf verfuegbar sein.")
+    selected_woche = "Alle"
     st.markdown("---")
 
-# ── Charts ────────────────────────────────────────────────────────────────────
-if not uebersicht.empty and "offener_betrag_summe" in uebersicht.columns:
+
+
+# ── Charts (gefiltert nach Wochenauswahl) ─────────────────────────────────────
+if not detail.empty:
     try:
         import altair as alt
 
+        # Basis-Datensatz je nach Wochen-Filter aufbauen
+        if not df_faellig_week.empty and selected_woche != "Alle":
+            belege_im_zeitraum = set(
+                df_faellig_week_unique[df_faellig_week_unique["woche"] == selected_woche]["buchhaltungsbeleg"]
+            )
+            chart_base = detail[detail["buchhaltungsbeleg"].isin(belege_im_zeitraum)].copy()
+        else:
+            chart_base = detail.copy()
+
+        # Aggregation pro Kreditor mit Endkunden-Namen für Tooltip
+        grp_cols = [c for c in ["kreditor", "kreditor_name"] if c in chart_base.columns]
+        if grp_cols and not chart_base.empty:
+            hat_debitor = "debitor" in chart_base.columns
+            hat_debitor_name = "debitor_name" in chart_base.columns
+
+            agg_dict = {"offener_betrag_summe": ("offener_betrag", "sum")}
+            if hat_debitor:
+                agg_dict["anzahl_debitoren"] = ("debitor", "nunique")
+            if hat_debitor_name:
+                # Jeder Endkunde auf eigener Zeile im Tooltip
+                agg_dict["endkunden_namen"] = (
+                    "debitor_name",
+                    lambda x: "\n".join(sorted(set(
+                        str(v) for v in x.dropna() if str(v) not in ("nan", "", "NaT")
+                    ))) or "—"
+                )
+
+            kred_agg = chart_base.groupby(grp_cols, as_index=False).agg(**agg_dict)
+            kred_agg["betrag_fmt"] = kred_agg["offener_betrag_summe"].apply(fmt_mio)
+        else:
+            kred_agg = pd.DataFrame()
+
+        chart_titel_suffix = f" — {selected_woche}" if selected_woche != "Alle" else ""
         col_left, col_right = st.columns(2)
 
         with col_left:
-            st.subheader("Top 10 Kreditoren nach offenem Betrag")
-            top10 = (
-                uebersicht
-                .nlargest(10, "offener_betrag_summe")
-                [["kreditor_name", "offener_betrag_summe"]]
-                .copy()
-            )
-            chart = alt.Chart(top10).mark_bar(color="#1F4E79").encode(
-                x=alt.X("offener_betrag_summe:Q", title="Offener Betrag (EUR)", axis=alt.Axis(format=",.0f")),
-                y=alt.Y("kreditor_name:N", title="", sort="-x"),
-                tooltip=[
-                    alt.Tooltip("kreditor_name:N", title="Kreditor"),
-                    alt.Tooltip("offener_betrag_summe:Q", title="Betrag (EUR)", format=",.2f"),
-                ],
-            ).properties(height=400)
-            st.altair_chart(chart, use_container_width=True)
+            st.subheader(f"Top 10 Kreditoren nach Betrag{chart_titel_suffix}")
+            if not kred_agg.empty:
+                top10 = kred_agg.nlargest(10, "offener_betrag_summe").copy()
+                chart = alt.Chart(top10).mark_bar(color="#1F4E79").encode(
+                    x=alt.X("offener_betrag_summe:Q", title="Offener Betrag",
+                             axis=alt.Axis(format=",.0f")),
+                    y=alt.Y("kreditor_name:N", title="", sort="-x"),
+                    tooltip=[
+                        alt.Tooltip("kreditor_name:N", title="Kreditor"),
+                        alt.Tooltip("betrag_fmt:N", title="Offener Betrag"),
+                        alt.Tooltip("anzahl_debitoren:Q", title="Anzahl Endkunden"),
+                        alt.Tooltip("endkunden_namen:N", title="Endkunden"),
+                    ],
+                ).properties(height=400)
+                st.altair_chart(chart, use_container_width=True)
+            else:
+                st.info("Keine Daten für diesen Zeitraum.")
 
         with col_right:
-            st.subheader("Kreditoren nach Anzahl Endkunden")
-            if "anzahl_debitoren" in uebersicht.columns:
-                deb_data = (
-                    uebersicht[["kreditor_name", "anzahl_debitoren"]]
-                    .copy()
-                    .sort_values("anzahl_debitoren", ascending=False)
-                    .head(10)
-                )
+            st.subheader(f"Top 10 Kreditoren nach Endkunden{chart_titel_suffix}")
+            if not kred_agg.empty and "anzahl_debitoren" in kred_agg.columns:
+                deb_data = kred_agg.sort_values("anzahl_debitoren", ascending=False).head(10).copy()
                 chart2 = alt.Chart(deb_data).mark_bar(color="#2E75B6").encode(
                     x=alt.X("anzahl_debitoren:Q", title="Anzahl Endkunden"),
                     y=alt.Y("kreditor_name:N", title="", sort="-x"),
                     tooltip=[
                         alt.Tooltip("kreditor_name:N", title="Kreditor"),
-                        alt.Tooltip("anzahl_debitoren:Q", title="Endkunden"),
+                        alt.Tooltip("anzahl_debitoren:Q", title="Anzahl Endkunden"),
+                        alt.Tooltip("endkunden_namen:N", title="Endkunden"),
+                        alt.Tooltip("betrag_fmt:N", title="Offener Betrag"),
                     ],
                 ).properties(height=400)
                 st.altair_chart(chart2, use_container_width=True)
@@ -192,6 +259,7 @@ if not uebersicht.empty and "offener_betrag_summe" in uebersicht.columns:
         st.info("Altair nicht verfuegbar — Charts uebersprungen.")
 
 st.markdown("---")
+
 
 # ── Verknuepfungsstatistik ────────────────────────────────────────────────────
 st.subheader("Verknuepfungsstatistik (4-Schritt-Kette)")
@@ -220,7 +288,7 @@ if not uebersicht.empty:
         anz["aktualisiert_am"] = pd.to_datetime(anz["aktualisiert_am"], errors="coerce").dt.strftime("%d.%m.%Y %H:%M")
 
     if "offener_betrag_summe" in anz.columns:
-        anz["offener_betrag_summe"] = anz["offener_betrag_summe"].apply(fmt_eur)
+        anz["offener_betrag_summe"] = anz["offener_betrag_summe"].apply(fmt_mio)
 
     anz = anz.rename(columns={
         "kreditor": "Kreditor-Nr.",
