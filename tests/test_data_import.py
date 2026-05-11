@@ -1,10 +1,10 @@
 import pytest
-from core.data_import import load_sap_files
+from core.data_import import lade_ergebnis_daten
 
-def test_load_sap_files_missing_directory():
+def test_lade_ergebnis_daten_missing_directory():
     """Test importing with an invalid directory path."""
     pass
 
-def test_load_sap_files_structure():
+def test_lade_ergebnis_daten_structure():
     """Test if output DataFrame has correct columns (when mock data is provided)."""
     pass
