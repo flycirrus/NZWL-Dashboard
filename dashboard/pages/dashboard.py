@@ -19,23 +19,45 @@ with col_kern:
     if os.name == "nt":
         if st.button("Kernlogik ausfuehren"):
             skript = r"C:\nzwl-cashflow-core\src\kreditor_debitor\kreditor_debitor_logik.py"
-            with st.spinner("Kernlogik laeuft — SAP-Daten werden verarbeitet..."):
-                result = subprocess.run(
-                    [sys.executable, skript],
-                    capture_output=True, text=True, timeout=300,
-                )
-            if result.returncode == 0:
-                st.success("Kernlogik erfolgreich ausgefuehrt!")
-                with st.expander("Ausgabe anzeigen"):
-                    st.code(result.stdout)
-                st.cache_data.clear()
-                st.rerun()
+            
+            if not os.path.exists(skript):
+                st.error(f"Fehler: Das Skript wurde nicht gefunden!\nPfad: `{skript}`\nBitte den Pfad auf dem Server prüfen.")
             else:
-                st.error("Fehler bei der Kernlogik!")
-                with st.expander("Fehlerdetails"):
-                    st.code(result.stderr)
+                st.info("Starte Kernlogik...")
+                ausgabe_container = st.empty()
+                log_text = ""
+                
+                with st.spinner("Kernlogik läuft — bitte warten (Live-Ausgabe unten)..."):
+                    try:
+                        # Popen statt run(), um Output live zu lesen
+                        process = subprocess.Popen(
+                            [sys.executable, skript],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, # stderr in stdout umleiten
+                            text=True,
+                            bufsize=1, # Zeilenweise puffern
+                            universal_newlines=True
+                        )
+                        
+                        # Output live mitlesen und anzeigen
+                        for line in process.stdout:
+                            log_text += line
+                            ausgabe_container.code(log_text, language="shell")
+                            
+                        process.wait()
+                        
+                        if process.returncode == 0:
+                            st.success("Kernlogik erfolgreich ausgeführt!")
+                            st.cache_data.clear()
+                            # Optionaler kurzer Rerun nach Erfolg, oder Benutzer Button klicken lassen
+                            # st.rerun() 
+                        else:
+                            st.error(f"Kernlogik abgebrochen mit Fehlercode {process.returncode}!")
+                            
+                    except Exception as e:
+                        st.error(f"Systemfehler beim Ausführen: {e}")
     else:
-        st.caption("Kernlogik nur auf dem Server verfuegbar")
+        st.caption("Kernlogik nur auf dem Windows-Server verfügbar")
 
 with col_refresh:
     if st.button("Daten neu laden"):
