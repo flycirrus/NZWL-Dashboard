@@ -167,7 +167,22 @@ if zeitraum_filter != "Alle":
 if kw_filter != "Alle":
     belege_filtered = belege_filtered[belege_filtered["kw_label"] == kw_filter]
 
-belege_filtered = belege_filtered.sort_values("nettofaelligkeit").reset_index(drop=True)
+# ── Sortierung anwenden ──────────────────────────────────────────────────────
+# Sortierbare Spalten: name im DF → Anzeigename
+SORT_SPALTEN = {
+    "nettofaelligkeit": "Fällig am",
+    "kreditor_name":    "Kreditor",
+    "offener_betrag":   "Betrag",
+    "debitor_name":     "Endkunden",
+}
+if "faellig_sort_col" not in st.session_state:
+    st.session_state["faellig_sort_col"] = "nettofaelligkeit"  # Default: nach Datum
+    st.session_state["faellig_sort_asc"] = True
+
+belege_filtered = belege_filtered.sort_values(
+    st.session_state["faellig_sort_col"],
+    ascending=st.session_state["faellig_sort_asc"],
+).reset_index(drop=True)
 total       = len(belege_filtered)
 total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
 
@@ -176,6 +191,9 @@ filter_key = f"{zeitraum_filter}|{kw_filter}"
 if st.session_state.get("faellig_last_filter") != filter_key:
     st.session_state["faellig_page"]        = 0
     st.session_state["faellig_last_filter"] = filter_key
+    # Sortierung bei Filterwechsel zurücksetzen
+    st.session_state["faellig_sort_col"] = "nettofaelligkeit"
+    st.session_state["faellig_sort_asc"] = True
 
 cur_page = min(st.session_state.get("faellig_page", 0), total_pages - 1)
 
@@ -201,13 +219,63 @@ if total_pages > 1:
         st.session_state["faellig_page"] = cur_page + 1
         st.rerun()
 
-# ── Tabellenkopf ──────────────────────────────────────────────────────────────
-# Spalten: [Ampel | Datum | Beleg | Kreditor | Betrag | Endkunden]
-COL_W   = [3, 2, 2, 4, 2, 5]
-HEADERS = ["Ampel", "Fällig am", "Beleg", "Kreditor", "Betrag", "Endkunden"]
-hdr = st.columns(COL_W)
-for h, label in zip(hdr, HEADERS):
-    h.markdown(f'<div class="tbl-header">{label}</div>', unsafe_allow_html=True)
+# ── Tabellenkopf mit Sort-Buttons ────────────────────────────────────────────
+# Spalten: [Ampel | Fällig am | Beleg | Kreditor | Betrag | Endkunden]
+COL_W = [3, 2, 2, 4, 2, 5]
+hdr   = st.columns(COL_W)
+
+# Ampel + Beleg: nicht sortierbar → statische Beschriftung
+hdr[0].markdown('<div class="tbl-header">Ampel</div>', unsafe_allow_html=True)
+hdr[2].markdown('<div class="tbl-header">Beleg</div>',  unsafe_allow_html=True)
+
+# Sortierbare Spalten als Buttons
+# Aktive Spalte zeigt Pfeil ↑/↓, inaktive zeigen ↕
+def _sort_label(df_col, anzeige):
+    if st.session_state["faellig_sort_col"] == df_col:
+        pfeil = "↑" if st.session_state["faellig_sort_asc"] else "↓"
+        return f"{anzeige} {pfeil}"
+    return f"{anzeige} ↕"
+
+# [1] Fällig am
+if hdr[1].button(_sort_label("nettofaelligkeit", "Fällig am"), key="srt_datum", use_container_width=True):
+    if st.session_state["faellig_sort_col"] == "nettofaelligkeit":
+        st.session_state["faellig_sort_asc"] = not st.session_state["faellig_sort_asc"]
+    else:
+        st.session_state["faellig_sort_col"] = "nettofaelligkeit"
+        st.session_state["faellig_sort_asc"] = True
+    st.session_state["faellig_page"] = 0
+    st.rerun()
+
+# [3] Kreditor
+if hdr[3].button(_sort_label("kreditor_name", "Kreditor"), key="srt_kreditor", use_container_width=True):
+    if st.session_state["faellig_sort_col"] == "kreditor_name":
+        st.session_state["faellig_sort_asc"] = not st.session_state["faellig_sort_asc"]
+    else:
+        st.session_state["faellig_sort_col"] = "kreditor_name"
+        st.session_state["faellig_sort_asc"] = True
+    st.session_state["faellig_page"] = 0
+    st.rerun()
+
+# [4] Betrag
+if hdr[4].button(_sort_label("offener_betrag", "Betrag"), key="srt_betrag", use_container_width=True):
+    if st.session_state["faellig_sort_col"] == "offener_betrag":
+        st.session_state["faellig_sort_asc"] = not st.session_state["faellig_sort_asc"]
+    else:
+        st.session_state["faellig_sort_col"] = "offener_betrag"
+        st.session_state["faellig_sort_asc"] = False  # Betrag: erstmal absteigend
+    st.session_state["faellig_page"] = 0
+    st.rerun()
+
+# [5] Endkunden
+if hdr[5].button(_sort_label("debitor_name", "Endkunden"), key="srt_endkunden", use_container_width=True):
+    if st.session_state["faellig_sort_col"] == "debitor_name":
+        st.session_state["faellig_sort_asc"] = not st.session_state["faellig_sort_asc"]
+    else:
+        st.session_state["faellig_sort_col"] = "debitor_name"
+        st.session_state["faellig_sort_asc"] = True
+    st.session_state["faellig_page"] = 0
+    st.rerun()
+
 st.markdown('<div class="tbl-sep"></div>', unsafe_allow_html=True)
 
 # ── Tabellenzeilen ────────────────────────────────────────────────────────────
