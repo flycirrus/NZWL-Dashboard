@@ -43,6 +43,20 @@ st.markdown("""
               padding-bottom: 0.3rem; }
 .tbl-sep    { border-top: 1px solid #e0e0e0; margin: 0.15rem 0 0.25rem 0; }
 .tbl-cell   { font-size: 0.88rem; padding: 0.15rem 0; line-height: 1.4; }
+
+/* Inaktive Ampel-Buttons: kein Rahmen, kein Hintergrund — nur das Emoji */
+div[data-testid="stButton"] button[kind="secondary"] {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0.1rem 0.2rem !important;
+    min-height: unset !important;
+    font-size: 1.2rem !important;
+}
+div[data-testid="stButton"] button[kind="secondary"]:hover {
+    background: rgba(0, 0, 0, 0.07) !important;
+    border-radius: 6px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
