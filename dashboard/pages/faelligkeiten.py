@@ -117,13 +117,20 @@ belege["kw_label"] = belege.apply(
 )
 
 # ── Zeitraum-Klassifizierung ──────────────────────────────────────────────────
+# Wochengrenzen auf ISO-Basis (Montag–Sonntag) — damit KPI-Karten
+# und Zeitraum-Filter deckungsgleich mit dem KW-Filter sind.
+heute_montag   = heute - pd.Timedelta(days=heute.weekday())  # Montag dieser KW
+naechste_kw    = heute_montag + pd.Timedelta(weeks=1)
+in_2_wochen    = heute_montag + pd.Timedelta(weeks=2)
+in_3_wochen    = heute_montag + pd.Timedelta(weeks=3)
+in_4_wochen    = heute_montag + pd.Timedelta(weeks=4)
+
 def woche_label(d):
-    diff = (d - heute).days
-    if diff < 0:    return "Überfällig"
-    if diff < 7:    return "Diese Woche"
-    if diff < 14:   return "Nächste Woche"
-    if diff < 21:   return "In 2 Wochen"
-    if diff < 28:   return "In 3 Wochen"
+    if d < heute_montag:  return "Überfällig"
+    if d < naechste_kw:   return "Diese Woche"
+    if d < in_2_wochen:   return "Nächste Woche"
+    if d < in_3_wochen:   return "In 2 Wochen"
+    if d < in_4_wochen:   return "In 3 Wochen"
     return "Später (4+ Wochen)"
 
 WOCHEN_ORDER = ["Überfällig","Diese Woche","Nächste Woche","In 2 Wochen","In 3 Wochen","Später (4+ Wochen)"]
