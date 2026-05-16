@@ -42,20 +42,25 @@ st.markdown("""
               text-transform: uppercase; letter-spacing: 0.05em;
               padding-bottom: 0.3rem; }
 .tbl-sep    { border-top: 1px solid #e0e0e0; margin: 0.15rem 0 0.25rem 0; }
-.tbl-cell   { font-size: 0.88rem; padding: 0.15rem 0; line-height: 1.4; }
+
+/* Zebra-Zellen: gleichmäßige Höhe und Zeilenoptik */
+.tbl-cell       { font-size: 0.88rem; padding: 0.35rem 0.4rem;
+                  line-height: 1.4; border-radius: 3px; }
+.tbl-cell.even  { background: rgba(31, 78, 121, 0.05); }
+.tbl-cell.odd   { background: transparent; }
 
 /* Inaktive Ampel-Buttons: kein Rahmen, kein Hintergrund — nur das Emoji */
 div[data-testid="stButton"] button[kind="secondary"] {
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
-    padding: 0.1rem 0.2rem !important;
+    padding: 0.05rem 0.15rem !important;
     min-height: unset !important;
-    font-size: 1.2rem !important;
+    font-size: 1.15rem !important;
 }
 div[data-testid="stButton"] button[kind="secondary"]:hover {
     background: rgba(0, 0, 0, 0.07) !important;
-    border-radius: 6px !important;
+    border-radius: 4px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -282,20 +287,23 @@ st.markdown('<div class="tbl-sep"></div>', unsafe_allow_html=True)
 page_start = cur_page * PAGE_SIZE
 page_rows  = belege_filtered.iloc[page_start : page_start + PAGE_SIZE]
 
-def _cell(col, text):
-    col.markdown(f'<div class="tbl-cell">{text}</div>', unsafe_allow_html=True)
+def _cell(col, text, zeile_gerade: bool = False):
+    css = "even" if zeile_gerade else "odd"
+    col.markdown(f'<div class="tbl-cell {css}">{text}</div>', unsafe_allow_html=True)
 
-for _, row in page_rows.iterrows():
-    beleg_id       = str(row["buchhaltungsbeleg"])
+for zeilen_idx, (_, row) in enumerate(page_rows.iterrows()):
+    gerade      = (zeilen_idx % 2 == 0)
+    beleg_id    = str(row["buchhaltungsbeleg"])
     current_status = ampel_status.get(beleg_id, "keine")
 
     row_cols = st.columns(COL_W)
 
-    # Ampel: 3 Buttons (rot/gelb/gruen), kein schwarzer Button
-    # Aktiver Button = "primary", inaktive = "secondary"
-    # Klick auf bereits aktiven → zurücksetzen auf "keine" (kein Status)
+    # Ampel: 3 Buttons eng nebeneinander (kein use_container_width)
+    # Aktiver Button = "primary", inaktive = "secondary" (borderless per CSS)
+    # Klick auf bereits aktiven → zurücksetzen auf "keine"
     with row_cols[0]:
-        btn_cols = st.columns(3)
+        # [1,1,1,2]: Buttons links verpackt, rechts Leerraum
+        btn_cols = st.columns([1, 1, 1, 2])
         for i, (status_key, (emoji, label)) in enumerate(AMPEL.items()):
             is_active = (current_status == status_key)
             if btn_cols[i].button(
@@ -303,7 +311,7 @@ for _, row in page_rows.iterrows():
                 key=f"ampel_{beleg_id}_{status_key}",
                 type="primary" if is_active else "secondary",
                 help=f"{label} (nochmals klicken zum Zurücksetzen)" if is_active else label,
-                use_container_width=True,
+                use_container_width=False,  # kompakt: kein Strecken
             ):
                 # Nochmals klicken → auf "keine" setzen
                 new_status = "keine" if is_active else status_key
@@ -315,12 +323,12 @@ for _, row in page_rows.iterrows():
                 )
                 st.rerun()
 
-    _cell(row_cols[1], row["nettofaelligkeit"].strftime("%d.%m.%Y"))
-    _cell(row_cols[2], f"<code>{beleg_id}</code>")
-    _cell(row_cols[3], str(row.get("kreditor_name", "—")))
-    _cell(row_cols[4], fmt_eur(row["offener_betrag"]))
+    _cell(row_cols[1], row["nettofaelligkeit"].strftime("%d.%m.%Y"), gerade)
+    _cell(row_cols[2], f"<code>{beleg_id}</code>",                    gerade)
+    _cell(row_cols[3], str(row.get("kreditor_name", "—")),            gerade)
+    _cell(row_cols[4], fmt_eur(row["offener_betrag"]),                 gerade)
     endkunden = str(row.get("debitor_name", ""))
-    _cell(row_cols[5], endkunden if endkunden not in ("", "nan") else "—")
+    _cell(row_cols[5], endkunden if endkunden not in ("", "nan") else "—", gerade)
 
 st.markdown('<div class="tbl-sep" style="margin-top:0.5rem;"></div>', unsafe_allow_html=True)
 
