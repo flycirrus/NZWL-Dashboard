@@ -6,6 +6,12 @@ from datetime import datetime
 
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from core.data_import import lade_ergebnis_daten
+from core.calculations import (
+    ampel_zusammenfassung, klassifiziere_faelligkeit,
+    AMPEL_ROT, AMPEL_GELB, AMPEL_GRUEN,
+    FARBE_ROT, FARBE_GELB, FARBE_GRUEN,
+    FARBE_ROT_BG, FARBE_GELB_BG, FARBE_GRUEN_BG,
+)
 
 st.title("Dashboard")
 
@@ -14,50 +20,46 @@ import os
 import subprocess
 
 col_kern, col_refresh, col_ts = st.columns([1, 1, 2])
-ausgabe_container = st.empty() # Container in voller Breite für Terminal-Output
+ausgabe_container = st.empty()
 
 with col_kern:
     if os.name == "nt":
         if st.button("Kernlogik ausfuehren"):
             skript = r"C:\nzwl-cashflow-core\src\kreditor_debitor\kreditor_debitor_logik.py"
-            
+
             if not os.path.exists(skript):
-                st.error(f"Fehler: Das Skript wurde nicht gefunden!\nPfad: `{skript}`\nBitte den Pfad auf dem Server prüfen.")
+                st.error(f"Fehler: Das Skript wurde nicht gefunden!\nPfad: `{skript}`\nBitte den Pfad auf dem Server pruefen.")
             else:
                 st.info("Starte Kernlogik...")
                 log_text = ""
-                
-                with st.spinner("Kernlogik läuft — bitte warten (Live-Ausgabe unten)..."):
+
+                with st.spinner("Kernlogik laeuft — bitte warten (Live-Ausgabe unten)..."):
                     try:
-                        # Popen statt run(), um Output live zu lesen
                         process = subprocess.Popen(
                             [sys.executable, skript],
                             stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, # stderr in stdout umleiten
+                            stderr=subprocess.STDOUT,
                             text=True,
-                            bufsize=1, # Zeilenweise puffern
+                            bufsize=1,
                             universal_newlines=True
                         )
-                        
-                        # Output live mitlesen und anzeigen
+
                         for line in process.stdout:
                             log_text += line
                             ausgabe_container.code(log_text, language="shell")
-                            
+
                         process.wait()
-                        
+
                         if process.returncode == 0:
-                            st.success("Kernlogik erfolgreich ausgeführt!")
+                            st.success("Kernlogik erfolgreich ausgefuehrt!")
                             st.cache_data.clear()
-                            # Optionaler kurzer Rerun nach Erfolg, oder Benutzer Button klicken lassen
-                            # st.rerun() 
                         else:
                             st.error(f"Kernlogik abgebrochen mit Fehlercode {process.returncode}!")
-                            
+
                     except Exception as e:
-                        st.error(f"Systemfehler beim Ausführen: {e}")
+                        st.error(f"Systemfehler beim Ausfuehren: {e}")
     else:
-        st.caption("Kernlogik nur auf dem Windows-Server verfügbar")
+        st.caption("Kernlogik nur auf dem Windows-Server verfuegbar")
 
 with col_refresh:
     if st.button("Daten neu laden"):
@@ -94,28 +96,92 @@ if not statistik.empty:
 
 # ── Hilfsfunktionen ──────────────────────────────────────────────────────────
 def _fmt_num(value: float, decimals: int = 2) -> str:
-    """Zahl auf Deutsch formatieren (Punkt = Tausender, Komma = Dezimal)."""
     fmt = f"{value:,.{decimals}f}"
     return fmt.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def fmt_eur(betrag: float) -> str:
-    return f"{_fmt_num(betrag, 2)} €"
+    return f"{_fmt_num(betrag, 2)} EUR"
 
 
 def fmt_mio(betrag: float) -> str:
-    """Kompakte EUR-Darstellung: Mrd.€ / M€ / T€."""
     abs_b = abs(betrag)
     if abs_b >= 1_000_000_000:
-        return f"{_fmt_num(betrag / 1_000_000_000, 2)} Mrd. €"
+        return f"{_fmt_num(betrag / 1_000_000_000, 2)} Mrd. EUR"
     if abs_b >= 1_000_000:
-        return f"{_fmt_num(betrag / 1_000_000, 2)} M€"
+        return f"{_fmt_num(betrag / 1_000_000, 2)} M EUR"
     if abs_b >= 1_000:
-        return f"{_fmt_num(betrag / 1_000, 1)} T€"
+        return f"{_fmt_num(betrag / 1_000, 1)} T EUR"
     return fmt_eur(betrag)
 
 
-# ── KPI-Karten ────────────────────────────────────────────────────────────────
+# ── Ampel-KPI-Karten (Rot/Gelb/Gruen) ───────────────────────────────────────
+ampel = ampel_zusammenfassung(detail)
+
+if "ampel_filter" not in st.session_state:
+    st.session_state["ampel_filter"] = "Alle"
+
+st.markdown("### Ampel-Status")
+
+ampel_col1, ampel_col2, ampel_col3, ampel_col4 = st.columns([1, 1, 1, 0.8])
+
+ampel_daten = [
+    (AMPEL_ROT, FARBE_ROT, FARBE_ROT_BG, "Ueberfaellig", ampel_col1),
+    (AMPEL_GELB, FARBE_GELB, FARBE_GELB_BG, "Faellig bald", ampel_col2),
+    (AMPEL_GRUEN, FARBE_GRUEN, FARBE_GRUEN_BG, "OK / Freigegeben", ampel_col3),
+]
+
+for ampel_key, farbe, farbe_bg, label, col in ampel_daten:
+    werte = ampel[ampel_key]
+    is_active = st.session_state["ampel_filter"] == ampel_key
+    border_width = "3px" if is_active else "1px"
+    border_style = f"{border_width} solid {farbe}"
+
+    col.markdown(f"""
+    <div style="
+        background: {farbe_bg};
+        border: {border_style};
+        border-left: 5px solid {farbe};
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 8px;
+    ">
+        <div style="color: #555555; font-size: 13px; font-weight: 600;">{label}</div>
+        <div style="color: {farbe}; font-size: 28px; font-weight: 700;">{werte['anzahl']} Belege</div>
+        <div style="color: #1A1A1A; font-size: 16px;">{fmt_mio(werte['betrag'])}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    btn_label = "Aktiv" if is_active else "Filtern"
+    if col.button(btn_label, key=f"ampel_btn_{ampel_key}", use_container_width=True):
+        st.session_state["ampel_filter"] = "Alle" if is_active else ampel_key
+        st.rerun()
+
+with ampel_col4:
+    gesamt_belege = sum(v["anzahl"] for v in ampel.values())
+    gesamt_betrag_ampel = sum(v["betrag"] for v in ampel.values())
+    st.markdown(f"""
+    <div style="
+        background: #F5F7FA;
+        border: 1px solid #E0E0E0;
+        border-left: 5px solid #1F4E79;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 8px;
+    ">
+        <div style="color: #555555; font-size: 13px; font-weight: 600;">Gesamt</div>
+        <div style="color: #1F4E79; font-size: 28px; font-weight: 700;">{gesamt_belege} Belege</div>
+        <div style="color: #1A1A1A; font-size: 16px;">{fmt_mio(gesamt_betrag_ampel)}</div>
+    </div>
+    """, unsafe_allow_html=True)
+    is_alle = st.session_state["ampel_filter"] == "Alle"
+    if ampel_col4.button("Alle" if not is_alle else "Aktiv", key="ampel_btn_alle", use_container_width=True):
+        st.session_state["ampel_filter"] = "Alle"
+        st.rerun()
+
+st.markdown("---")
+
+# ── Allgemeine KPI-Karten ────────────────────────────────────────────────────
 gesamt_betrag = (
     uebersicht["offener_betrag_summe"].sum()
     if not uebersicht.empty and "offener_betrag_summe" in uebersicht.columns
@@ -144,8 +210,8 @@ col4.metric(
 
 st.markdown("---")
 
-# ── Faelligkeiten (Wochenansicht) ─────────────────────────────────────────────────────
-df_faellig_week = pd.DataFrame()  # used later for chart filtering
+# ── Faelligkeiten (Wochenansicht) ────────────────────────────────────────────
+df_faellig_week = pd.DataFrame()
 
 if not detail.empty and "nettofaelligkeit" in detail.columns:
     st.subheader("Faelligkeiten nach Woche")
@@ -158,6 +224,14 @@ if not detail.empty and "nettofaelligkeit" in detail.columns:
     df_faellig_week["nettofaelligkeit"] = pd.to_datetime(df_faellig_week["nettofaelligkeit"], errors="coerce")
     df_faellig_week = df_faellig_week.dropna(subset=["nettofaelligkeit"])
     df_faellig_week_unique = df_faellig_week.drop_duplicates(subset=["buchhaltungsbeleg"])
+
+    # Ampel-Filter anwenden
+    aktiver_ampel = st.session_state["ampel_filter"]
+    if aktiver_ampel != "Alle":
+        df_faellig_week_unique = df_faellig_week_unique.copy()
+        df_faellig_week_unique["_ampel"] = klassifiziere_faelligkeit(df_faellig_week_unique["nettofaelligkeit"])
+        df_faellig_week_unique = df_faellig_week_unique[df_faellig_week_unique["_ampel"] == aktiver_ampel]
+        df_faellig_week_unique = df_faellig_week_unique.drop(columns=["_ampel"])
 
     heute = pd.Timestamp.now().normalize()
     df_faellig_week_unique = df_faellig_week_unique.copy()
@@ -175,7 +249,6 @@ if not detail.empty and "nettofaelligkeit" in detail.columns:
     if "selected_woche" not in st.session_state:
         st.session_state["selected_woche"] = "Alle"
 
-    # 5 Wochen-Spalten + 1 schmalere Spalte rechts für "Alle"
     wk_cols = st.columns([1, 1, 1, 1, 1, 0.7])
     for i, woche in enumerate(wochen_order):
         betrag = wochen_summe.get(woche, 0)
@@ -186,7 +259,6 @@ if not detail.empty and "nettofaelligkeit" in detail.columns:
             st.session_state["selected_woche"] = "Alle" if is_active else woche
             st.rerun()
 
-    # "Alle" Knopf rechts — Dummy-Metric zum perfekten vertikalen Ausrichten
     wk_cols[5].metric(" ", " ")
     if wk_cols[5].button("Alle", key="btn_alle", use_container_width=True):
         st.session_state["selected_woche"] = "Alle"
@@ -201,22 +273,77 @@ else:
     st.markdown("---")
 
 
+# ── Expander: Ueberfaellig / Faellig bald / Naechste Woche ──────────────────
+if not df_faellig_week.empty and "nettofaelligkeit" in detail.columns:
+    df_exp = df_faellig_week.drop_duplicates(subset=["buchhaltungsbeleg"]).copy()
 
-# ── Charts (gefiltert nach Wochenauswahl) ─────────────────────────────────────
+    # Ampel-Filter anwenden
+    if aktiver_ampel != "Alle":
+        df_exp["_ampel"] = klassifiziere_faelligkeit(df_exp["nettofaelligkeit"])
+        df_exp = df_exp[df_exp["_ampel"] == aktiver_ampel]
+        df_exp = df_exp.drop(columns=["_ampel"])
+
+    heute = pd.Timestamp.now().normalize()
+    df_exp["_zeitraum"] = df_exp["nettofaelligkeit"].apply(
+        lambda d: "Ueberfaellig" if d < heute
+        else "Faellig diese Woche" if d < heute + pd.Timedelta(days=7)
+        else "Naechste Woche" if d < heute + pd.Timedelta(days=14)
+        else "Spaeter"
+    )
+
+    zeitraum_config = [
+        ("Ueberfaellig", FARBE_ROT, "Ueberfaellig"),
+        ("Faellig diese Woche", FARBE_GELB, "Faellig diese Woche"),
+        ("Naechste Woche", "#2E75B6", "Naechste Woche"),
+        ("Spaeter", "#1F4E79", "Spaeter (2+ Wochen)"),
+    ]
+
+    for zeitraum_key, farbe, expander_label in zeitraum_config:
+        subset = df_exp[df_exp["_zeitraum"] == zeitraum_key].sort_values("nettofaelligkeit")
+        anzahl = len(subset)
+        betrag = subset["offener_betrag"].sum() if not subset.empty else 0
+
+        with st.expander(f"{expander_label} — {anzahl} Belege, {fmt_mio(betrag)}", expanded=(zeitraum_key == "Ueberfaellig" and anzahl > 0)):
+            if subset.empty:
+                st.info("Keine Belege in diesem Zeitraum.")
+            else:
+                anzeige = subset[["nettofaelligkeit", "buchhaltungsbeleg", "kreditor_name", "offener_betrag"]].copy()
+                anzeige["nettofaelligkeit"] = anzeige["nettofaelligkeit"].dt.strftime("%d.%m.%Y")
+                anzeige["offener_betrag"] = anzeige["offener_betrag"].apply(fmt_eur)
+                anzeige.columns = ["Faellig am", "Beleg", "Kreditor", "Offener Betrag"]
+                st.dataframe(anzeige, use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+
+
+# ── Charts (gefiltert nach Wochenauswahl + Ampel) ───────────────────────────
 if not detail.empty:
     try:
         import altair as alt
 
-        # Basis-Datensatz je nach Wochen-Filter aufbauen
-        if not df_faellig_week.empty and selected_woche != "Alle":
-            belege_im_zeitraum = set(
-                df_faellig_week_unique[df_faellig_week_unique["woche"] == selected_woche]["buchhaltungsbeleg"]
-            )
-            chart_base = detail[detail["buchhaltungsbeleg"].isin(belege_im_zeitraum)].copy()
-        else:
-            chart_base = detail.copy()
+        chart_base = detail.copy()
 
-        # Aggregation pro Kreditor mit Endkunden-Namen für Tooltip
+        # Ampel-Filter anwenden
+        if aktiver_ampel != "Alle" and "nettofaelligkeit" in chart_base.columns:
+            chart_base["_ampel"] = klassifiziere_faelligkeit(chart_base["nettofaelligkeit"])
+            chart_base = chart_base[chart_base["_ampel"] == aktiver_ampel]
+            chart_base = chart_base.drop(columns=["_ampel"])
+
+        # Wochen-Filter anwenden
+        if not df_faellig_week.empty and selected_woche != "Alle":
+            df_week_tmp = df_faellig_week.drop_duplicates(subset=["buchhaltungsbeleg"]).copy()
+            df_week_tmp["woche"] = df_week_tmp["nettofaelligkeit"].apply(
+                lambda d: "Ueberfaellig" if d < heute
+                else "Diese Woche" if d < heute + pd.Timedelta(days=7)
+                else "Naechste Woche" if d < heute + pd.Timedelta(days=14)
+                else "In 2 Wochen" if d < heute + pd.Timedelta(days=21)
+                else "Spaeter"
+            )
+            belege_im_zeitraum = set(
+                df_week_tmp[df_week_tmp["woche"] == selected_woche]["buchhaltungsbeleg"]
+            )
+            chart_base = chart_base[chart_base["buchhaltungsbeleg"].isin(belege_im_zeitraum)]
+
         grp_cols = [c for c in ["kreditor", "kreditor_name"] if c in chart_base.columns]
         if grp_cols and not chart_base.empty:
             hat_debitor = "debitor" in chart_base.columns
@@ -226,7 +353,6 @@ if not detail.empty:
             if hat_debitor:
                 agg_dict["anzahl_debitoren"] = ("debitor", "nunique")
             if hat_debitor_name:
-                # Jeder Endkunde auf eigener Zeile im Tooltip
                 agg_dict["endkunden_namen"] = (
                     "debitor_name",
                     lambda x: "\n".join(sorted(set(
@@ -239,7 +365,13 @@ if not detail.empty:
         else:
             kred_agg = pd.DataFrame()
 
-        chart_titel_suffix = f" — {selected_woche}" if selected_woche != "Alle" else ""
+        filter_suffix_parts = []
+        if aktiver_ampel != "Alle":
+            filter_suffix_parts.append(aktiver_ampel)
+        if selected_woche != "Alle":
+            filter_suffix_parts.append(selected_woche)
+        chart_titel_suffix = f" — {', '.join(filter_suffix_parts)}" if filter_suffix_parts else ""
+
         col_left, col_right = st.columns(2)
 
         with col_left:
@@ -259,7 +391,7 @@ if not detail.empty:
                 ).properties(height=400)
                 st.altair_chart(chart, use_container_width=True)
             else:
-                st.info("Keine Daten für diesen Zeitraum.")
+                st.info("Keine Daten fuer diesen Zeitraum.")
 
         with col_right:
             st.subheader(f"Top 10 Kreditoren nach Endkunden{chart_titel_suffix}")
@@ -281,7 +413,6 @@ if not detail.empty:
         st.info("Altair nicht verfuegbar — Charts uebersprungen.")
 
 st.markdown("---")
-
 
 # ── Verknuepfungsstatistik ────────────────────────────────────────────────────
 st.subheader("Verknuepfungsstatistik (4-Schritt-Kette)")

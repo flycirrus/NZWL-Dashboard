@@ -23,6 +23,10 @@ st.markdown("""
     }
     /* Hide default Streamlit page navigation */
     [data-testid="stSidebarNav"] {display: none !important;}
+    /* Ampel-Karten: kein ueberflüssiger Rand */
+    div[data-testid="stExpander"] summary {
+        font-weight: 600;
+    }
 </style>
 """, unsafe_allow_html=True)
 
