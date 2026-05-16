@@ -74,7 +74,12 @@ belege = df.groupby("buchhaltungsbeleg", as_index=False).agg({
     "kreditor":         "first",
     "offener_betrag":   "first",
     "nettofaelligkeit": "first",
-    "debitor_name": lambda x: ", ".join(sorted(set(str(v) for v in x.dropna() if str(v) != "nan"))),
+    "debitor_name": lambda x: ", ".join(sorted({
+        teil.strip()
+        for v in x.dropna()
+        for teil in str(v).split(",")
+        if teil.strip() and teil.strip() not in ("nan", "NaT", "")
+    })),
 })
 
 if belege.empty:

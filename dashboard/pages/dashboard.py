@@ -222,27 +222,31 @@ if not detail.empty:
             hat_debitor = "debitor" in chart_base.columns
             hat_debitor_name = "debitor_name" in chart_base.columns
 
+            # Hilfsfunktion: debitor_name-Werte koennen bereits kommagetrennte
+            # Mehrfachnamen enthalten (Kernlogik-Aggregat). Deshalb immer
+            # zuerst per Komma aufsplitten, dann deduplizieren.
+            def _namen_set(series):
+                namen = set()
+                for v in series.dropna():
+                    for teil in str(v).split(","):
+                        teil = teil.strip()
+                        if teil and teil not in ("nan", "NaT", ""):
+                            namen.add(teil)
+                return namen
+
             agg_dict = {"offener_betrag_summe": ("offener_betrag", "sum")}
             if hat_debitor_name:
-                # Endkunden-Namen: nur Einträge mit echtem Namen (kein nan/leer)
-                _valide_namen = lambda x: sorted(set(
-                    str(v) for v in x.dropna() if str(v) not in ("nan", "", "NaT")
-                ))
-                # Anzahl aus denselben Namen → stimmt immer mit der Liste überein
+                # Anzahl und Namen aus derselben Logik → immer konsistent
                 agg_dict["anzahl_debitoren"] = (
                     "debitor_name",
-                    lambda x: len(set(
-                        str(v) for v in x.dropna() if str(v) not in ("nan", "", "NaT")
-                    ))
+                    lambda x: len(_namen_set(x))
                 )
                 agg_dict["endkunden_namen"] = (
                     "debitor_name",
-                    lambda x: "\n".join(sorted(set(
-                        str(v) for v in x.dropna() if str(v) not in ("nan", "", "NaT")
-                    ))) or "—"
+                    lambda x: ", ".join(sorted(_namen_set(x))) or "—"
                 )
             elif hat_debitor:
-                # Fallback falls kein debitor_name: IDs zählen
+                # Fallback falls kein debitor_name: IDs zaehlen
                 agg_dict["anzahl_debitoren"] = ("debitor", "nunique")
 
             kred_agg = chart_base.groupby(grp_cols, as_index=False).agg(**agg_dict)
