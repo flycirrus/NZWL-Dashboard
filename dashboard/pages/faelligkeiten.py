@@ -1,43 +1,19 @@
 import streamlit as st
 import sys
 import os
-import json
 import pandas as pd
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
-from core.data_import import lade_ergebnis_daten
+from core.data_import import lade_ergebnis_daten, lade_ampel_status, speichere_ampel_status
 
-# ── Ampel Speicher-Logik ──────────────────────────────────────────────────────
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-AMPEL_FILE = os.path.join(BASE_DIR, "data", "output", "ampel_status.json")
-
-def load_ampel_status():
-    if os.path.exists(AMPEL_FILE):
-        try:
-            with open(AMPEL_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except:
-            return {}
-    return {}
-
-def save_ampel_status(status_dict):
-    os.makedirs(os.path.dirname(AMPEL_FILE), exist_ok=True)
-    with open(AMPEL_FILE, "w", encoding="utf-8") as f:
-        json.dump(status_dict, f, ensure_ascii=False, indent=2)
-
-ampel_status = load_ampel_status()
-AMPEL_OPTIONS = ["🔴 Stop", "🟡 Prüfung", "🟢 Freigegeben"]
-
-
+# ── Formatierung ──────────────────────────────────────────────────────────────
 def _fmt_num(value: float, decimals: int = 2) -> str:
     fmt = f"{value:,.{decimals}f}"
     return fmt.replace(",", "X").replace(".", ",").replace("X", ".")
 
-
 def fmt_eur(betrag: float) -> str:
     return f"{_fmt_num(betrag, 2)} €"
-
 
 def fmt_mio(betrag: float) -> str:
     abs_b = abs(betrag)
@@ -49,167 +25,238 @@ def fmt_mio(betrag: float) -> str:
         return f"{_fmt_num(betrag / 1_000, 1)} T€"
     return fmt_eur(betrag)
 
+# ── Ampel: nur 3 Status (kein Schwarz) ───────────────────────────────────────
+# Klick auf bereits aktiven Button → setzt auf "keine" (leer) zurück
+AMPEL = {
+    "rot":   ("🔴", "Stop / Prüfen"),
+    "gelb":  ("🟡", "In Prüfung"),
+    "gruen": ("🟢", "Freigegeben"),
+}
 
-st.title("Faelligkeiten — Was muss wann bezahlt werden?")
+PAGE_SIZE = 20
 
-daten = lade_ergebnis_daten()
-detail = daten["detail"]
+# ── CSS ───────────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+.tbl-header { font-size: 0.78rem; font-weight: 700; color: #888;
+              text-transform: uppercase; letter-spacing: 0.05em;
+              padding-bottom: 0.3rem; }
+.tbl-sep    { border-top: 1px solid #e0e0e0; margin: 0.15rem 0 0.25rem 0; }
+.tbl-cell   { font-size: 0.88rem; padding: 0.15rem 0; line-height: 1.4; }
+</style>
+""", unsafe_allow_html=True)
+
+# ── Titel & Daten laden ───────────────────────────────────────────────────────
+st.title("Fälligkeiten — Was muss wann bezahlt werden?")
+
+daten        = lade_ergebnis_daten()
+detail       = daten["detail"]
+ampel_status = lade_ampel_status()
 
 if detail.empty:
     st.warning("Keine Detail-Daten geladen.")
     st.stop()
 
-# ── Faelligkeitsdaten vorbereiten ─────────────────────────────────────────────
-hat_faelligkeit = "nettofaelligkeit" in detail.columns
-if not hat_faelligkeit:
+if "nettofaelligkeit" not in detail.columns:
     st.warning(
-        "Faelligkeitsdaten sind noch nicht vorhanden. "
-        "Bitte auf dem Server die Kernlogik neu ausfuehren (git pull + python kreditor_debitor_logik.py), "
-        "dann export_mariadb.py und die neuen JSON-Dateien lokal kopieren."
+        "Fälligkeitsdaten sind noch nicht vorhanden. "
+        "Bitte auf dem Server die Kernlogik neu ausführen."
     )
     st.stop()
 
-# Pro Buchhaltungsbeleg nur eine Zeile (Beleg = eine Rechnung)
 df = detail.copy()
 df["nettofaelligkeit"] = pd.to_datetime(df["nettofaelligkeit"], errors="coerce")
 df = df.dropna(subset=["nettofaelligkeit"])
 
-# Aggregieren: pro Beleg die Faelligkeit + Kreditor + Betrag + verknuepfte Endkunden
+# Pro Buchhaltungsbeleg eine Zeile
 belege = df.groupby("buchhaltungsbeleg", as_index=False).agg({
-    "kreditor_name": "first",
-    "kreditor": "first",
-    "offener_betrag": "first",
+    "kreditor_name":    "first",
+    "kreditor":         "first",
+    "offener_betrag":   "first",
     "nettofaelligkeit": "first",
     "debitor_name": lambda x: ", ".join(sorted(set(str(v) for v in x.dropna() if str(v) != "nan"))),
-    "debitor": lambda x: ", ".join(sorted(set(str(v) for v in x.dropna() if str(v) != "nan"))),
-    "bom_parent": lambda x: ", ".join(sorted(set(str(v) for v in x.dropna() if str(v) != "nan"))),
 })
 
 if belege.empty:
-    st.info("Keine Belege mit Faelligkeitsdatum vorhanden.")
+    st.info("Keine Belege mit Fälligkeitsdatum vorhanden.")
     st.stop()
 
-# ── Wochen zuordnen ───────────────────────────────────────────────────────────
-heute = pd.Timestamp.now().normalize()
+# ── KW berechnen ──────────────────────────────────────────────────────────────
+heute        = pd.Timestamp.now().normalize()
+aktuelle_kw  = heute.isocalendar().week
+aktuelles_j  = heute.year
 
-def woche_label(d):
-    diff = (d - heute).days
-    if diff < 0:
-        return "Ueberfaellig"
-    elif diff < 7:
-        return "Diese Woche"
-    elif diff < 14:
-        return "Naechste Woche"
-    elif diff < 21:
-        return "In 2 Wochen"
-    elif diff < 28:
-        return "In 3 Wochen"
-    else:
-        return "Spaeter (4+ Wochen)"
-
-wochen_order = ["Ueberfaellig", "Diese Woche", "Naechste Woche", "In 2 Wochen", "In 3 Wochen", "Spaeter (4+ Wochen)"]
-belege["zeitraum"] = belege["nettofaelligkeit"].apply(woche_label)
-
-# ── KPI-Karten pro Woche ─────────────────────────────────────────────────────
-st.markdown("### Zahlungen nach Zeitraum")
-
-wochen_summe = belege.groupby("zeitraum")["offener_betrag"].agg(["sum", "count"]).reindex(wochen_order, fill_value=0)
-
-cols = st.columns(len(wochen_order))
-farben = {"Ueberfaellig": "red", "Diese Woche": "orange"}
-for i, woche in enumerate(wochen_order):
-    betrag = wochen_summe.loc[woche, "sum"] if woche in wochen_summe.index else 0
-    anzahl = int(wochen_summe.loc[woche, "count"]) if woche in wochen_summe.index else 0
-    cols[i].metric(woche, fmt_mio(betrag), f"{anzahl} Belege")
-
-st.markdown("---")
-
-# ── Filter nach Zeitraum ─────────────────────────────────────────────────────
-zeitraum_filter = st.selectbox("Zeitraum anzeigen", ["Alle"] + wochen_order)
-
-if zeitraum_filter != "Alle":
-    belege_filtered = belege[belege["zeitraum"] == zeitraum_filter]
-else:
-    belege_filtered = belege
-
-belege_filtered = belege_filtered.sort_values("nettofaelligkeit")
-
-# ── Detail-Tabelle ────────────────────────────────────────────────────────────
-st.subheader(f"Rechnungen — {zeitraum_filter}")
-st.caption(f"{len(belege_filtered)} Belege | Gesamt: {fmt_eur(belege_filtered['offener_betrag'].sum())}")
-
-anzeige = belege_filtered[[
-    "nettofaelligkeit", "buchhaltungsbeleg", "kreditor_name",
-    "offener_betrag", "debitor_name", "bom_parent"
-]].copy()
-
-# Ampel-Status (Dropdown) hinzufügen, Default "🔴 Stop"
-anzeige["Status"] = anzeige["buchhaltungsbeleg"].apply(lambda b: ampel_status.get(str(b), "🔴 Stop"))
-
-anzeige["nettofaelligkeit"] = anzeige["nettofaelligkeit"].dt.strftime("%d.%m.%Y")
-anzeige["offener_betrag"] = anzeige["offener_betrag"].apply(fmt_eur)
-
-# Spalten-Reihenfolge: Status ganz vorne
-anzeige = anzeige[["Status", "nettofaelligkeit", "buchhaltungsbeleg", "kreditor_name", "offener_betrag", "debitor_name", "bom_parent"]]
-anzeige.columns = ["Status", "Faellig am", "Beleg", "Kreditor", "Offener Betrag", "Endkunden", "Fertigteile"]
-
-st.caption("💡 **Tipp:** Du kannst den Status (Ampel) direkt in der Tabelle anklicken und ändern.")
-edited_df = st.data_editor(
-    anzeige,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "Status": st.column_config.SelectboxColumn(
-            "Status",
-            help="Ampel für den Freigabeprozess",
-            width="medium",
-            options=AMPEL_OPTIONS,
-            required=True
-        ),
-        "Faellig am": st.column_config.Column(disabled=True),
-        "Beleg": st.column_config.Column(disabled=True),
-        "Kreditor": st.column_config.Column(disabled=True),
-        "Offener Betrag": st.column_config.Column(disabled=True),
-        "Endkunden": st.column_config.Column(disabled=True),
-        "Fertigteile": st.column_config.Column(disabled=True),
-    },
-    key=f"ampel_editor_{zeitraum_filter}" # Eigener Key, damit der Wechsel des Filters nicht abstürzt
+belege["kw"]   = belege["nettofaelligkeit"].dt.isocalendar().week.astype(int)
+belege["jahr"] = belege["nettofaelligkeit"].dt.year.astype(int)
+belege["kw_label"] = belege.apply(
+    lambda r: f"KW {r['kw']:02d} / {r['jahr']}", axis=1
 )
 
-# Prüfen, ob sich ein Status geändert hat
-changed = False
-for index, row in edited_df.iterrows():
-    beleg_id = str(row["Beleg"])
-    new_status = row["Status"]
-    if ampel_status.get(beleg_id, "🔴 Stop") != new_status:
-        ampel_status[beleg_id] = new_status
-        changed = True
+# ── Zeitraum-Klassifizierung ──────────────────────────────────────────────────
+def woche_label(d):
+    diff = (d - heute).days
+    if diff < 0:    return "Überfällig"
+    if diff < 7:    return "Diese Woche"
+    if diff < 14:   return "Nächste Woche"
+    if diff < 21:   return "In 2 Wochen"
+    if diff < 28:   return "In 3 Wochen"
+    return "Später (4+ Wochen)"
 
-if changed:
-    save_ampel_status(ampel_status)
-    # Erfolgsmeldung zeigen (verschwindet bei Interaktion)
-    st.toast("Status gespeichert!", icon="💾")
+WOCHEN_ORDER = ["Überfällig","Diese Woche","Nächste Woche","In 2 Wochen","In 3 Wochen","Später (4+ Wochen)"]
+belege["zeitraum"] = belege["nettofaelligkeit"].apply(woche_label)
 
-# ── Aufschluesselung pro Kreditor ─────────────────────────────────────────────
+# ── KPI-Karten ────────────────────────────────────────────────────────────────
+st.markdown("### Zahlungen nach Zeitraum")
+wochen_summe = (
+    belege.groupby("zeitraum")["offener_betrag"]
+    .agg(["sum","count"])
+    .reindex(WOCHEN_ORDER, fill_value=0)
+)
+kpi_cols = st.columns(len(WOCHEN_ORDER))
+for i, woche in enumerate(WOCHEN_ORDER):
+    kpi_cols[i].metric(
+        woche,
+        fmt_mio(wochen_summe.loc[woche, "sum"]),
+        f"{int(wochen_summe.loc[woche, 'count'])} Belege",
+    )
+
 st.markdown("---")
-st.subheader("Aufschluesselung pro Kreditor")
 
-kred_summe = belege_filtered.groupby("kreditor_name").agg(
-    Betrag=("offener_betrag", "sum"),
-    Belege=("buchhaltungsbeleg", "count"),
-    Endkunden=("debitor_name", lambda x: ", ".join(sorted(set(
-        k.strip() for v in x.dropna() for k in str(v).split(",") if k.strip() and k.strip() != "nan"
-    )))),
-).sort_values("Betrag", ascending=False).reset_index()
+# ── Filter ────────────────────────────────────────────────────────────────────
+f1, f2 = st.columns(2)
 
+# Filter 1: Zeitraum
+zeitraum_filter = f1.selectbox(
+    "Zeitraum anzeigen",
+    ["Alle"] + WOCHEN_ORDER,
+)
+
+# Filter 2: Kalenderwoche
+kw_optionen = sorted(belege["kw_label"].unique(), key=lambda x: (int(x.split("/")[1]), int(x.split()[1])))
+aktuelle_kw_label = f"KW {aktuelle_kw:02d} / {aktuelles_j}"
+default_kw = aktuelle_kw_label if aktuelle_kw_label in kw_optionen else "Alle"
+kw_filter = f2.selectbox(
+    "Kalenderwoche",
+    ["Alle"] + kw_optionen,
+    index=(["Alle"] + kw_optionen).index(default_kw) if default_kw in ["Alle"] + kw_optionen else 0,
+)
+
+# Filter anwenden
+belege_filtered = belege.copy()
+if zeitraum_filter != "Alle":
+    belege_filtered = belege_filtered[belege_filtered["zeitraum"] == zeitraum_filter]
+if kw_filter != "Alle":
+    belege_filtered = belege_filtered[belege_filtered["kw_label"] == kw_filter]
+
+belege_filtered = belege_filtered.sort_values("nettofaelligkeit").reset_index(drop=True)
+total       = len(belege_filtered)
+total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+
+# Seite zurücksetzen bei Filterwechsel
+filter_key = f"{zeitraum_filter}|{kw_filter}"
+if st.session_state.get("faellig_last_filter") != filter_key:
+    st.session_state["faellig_page"]        = 0
+    st.session_state["faellig_last_filter"] = filter_key
+
+cur_page = min(st.session_state.get("faellig_page", 0), total_pages - 1)
+
+# ── Überschrift ───────────────────────────────────────────────────────────────
+st.subheader(f"Rechnungen — {zeitraum_filter}" + (f" | {kw_filter}" if kw_filter != "Alle" else ""))
+st.caption(
+    f"{total} Belege  |  Gesamt: {fmt_eur(belege_filtered['offener_betrag'].sum())}  |  "
+    f"Seite {cur_page+1} von {total_pages}"
+)
+
+# ── Pagination ────────────────────────────────────────────────────────────────
+if total_pages > 1:
+    pc1, pc2, pc3 = st.columns([1, 4, 1])
+    if pc1.button("◀ Zurück", disabled=(cur_page == 0), key="pg_back"):
+        st.session_state["faellig_page"] = cur_page - 1
+        st.rerun()
+    pc2.markdown(
+        f"<div style='text-align:center;padding-top:0.5rem;color:#888;'>"
+        f"{cur_page*PAGE_SIZE+1}–{min((cur_page+1)*PAGE_SIZE,total)} von {total}</div>",
+        unsafe_allow_html=True,
+    )
+    if pc3.button("Weiter ▶", disabled=(cur_page >= total_pages - 1), key="pg_next"):
+        st.session_state["faellig_page"] = cur_page + 1
+        st.rerun()
+
+# ── Tabellenkopf ──────────────────────────────────────────────────────────────
+# Spalten: [Ampel | Datum | Beleg | Kreditor | Betrag | Endkunden]
+COL_W   = [3, 2, 2, 4, 2, 5]
+HEADERS = ["Ampel", "Fällig am", "Beleg", "Kreditor", "Betrag", "Endkunden"]
+hdr = st.columns(COL_W)
+for h, label in zip(hdr, HEADERS):
+    h.markdown(f'<div class="tbl-header">{label}</div>', unsafe_allow_html=True)
+st.markdown('<div class="tbl-sep"></div>', unsafe_allow_html=True)
+
+# ── Tabellenzeilen ────────────────────────────────────────────────────────────
+page_start = cur_page * PAGE_SIZE
+page_rows  = belege_filtered.iloc[page_start : page_start + PAGE_SIZE]
+
+def _cell(col, text):
+    col.markdown(f'<div class="tbl-cell">{text}</div>', unsafe_allow_html=True)
+
+for _, row in page_rows.iterrows():
+    beleg_id       = str(row["buchhaltungsbeleg"])
+    current_status = ampel_status.get(beleg_id, "keine")
+
+    row_cols = st.columns(COL_W)
+
+    # Ampel: 3 Buttons (rot/gelb/gruen), kein schwarzer Button
+    # Aktiver Button = "primary", inaktive = "secondary"
+    # Klick auf bereits aktiven → zurücksetzen auf "keine" (kein Status)
+    with row_cols[0]:
+        btn_cols = st.columns(3)
+        for i, (status_key, (emoji, label)) in enumerate(AMPEL.items()):
+            is_active = (current_status == status_key)
+            if btn_cols[i].button(
+                emoji,
+                key=f"ampel_{beleg_id}_{status_key}",
+                type="primary" if is_active else "secondary",
+                help=f"{label} (nochmals klicken zum Zurücksetzen)" if is_active else label,
+                use_container_width=True,
+            ):
+                # Nochmals klicken → auf "keine" setzen
+                new_status = "keine" if is_active else status_key
+                speichere_ampel_status(beleg_id, new_status)
+                ampel_status[beleg_id] = new_status
+                st.toast(
+                    f"{'Status entfernt' if new_status == 'keine' else label} — Beleg {beleg_id}",
+                    icon="💾",
+                )
+                st.rerun()
+
+    _cell(row_cols[1], row["nettofaelligkeit"].strftime("%d.%m.%Y"))
+    _cell(row_cols[2], f"<code>{beleg_id}</code>")
+    _cell(row_cols[3], str(row.get("kreditor_name", "—")))
+    _cell(row_cols[4], fmt_eur(row["offener_betrag"]))
+    endkunden = str(row.get("debitor_name", ""))
+    _cell(row_cols[5], endkunden if endkunden not in ("", "nan") else "—")
+
+st.markdown('<div class="tbl-sep" style="margin-top:0.5rem;"></div>', unsafe_allow_html=True)
+
+# ── Aufschlüsselung pro Kreditor ──────────────────────────────────────────────
+st.markdown("---")
+st.subheader("Aufschlüsselung pro Kreditor")
+kred_summe = (
+    belege_filtered.groupby("kreditor_name")
+    .agg(
+        Betrag =("offener_betrag",   "sum"),
+        Belege =("buchhaltungsbeleg","count"),
+    )
+    .sort_values("Betrag", ascending=False)
+    .reset_index()
+    .rename(columns={"kreditor_name": "Kreditor"})
+)
 kred_summe["Betrag"] = kred_summe["Betrag"].apply(fmt_eur)
-kred_summe = kred_summe.rename(columns={"kreditor_name": "Kreditor"})
 st.dataframe(kred_summe, use_container_width=True, hide_index=True)
 
 # ── Download ──────────────────────────────────────────────────────────────────
 st.markdown("---")
 st.download_button(
-    "Faelligkeiten als CSV",
+    "⬇️  Fälligkeiten als CSV",
     data=belege_filtered.to_csv(index=False, sep=";", decimal=",").encode("utf-8"),
     file_name="faelligkeiten.csv",
     mime="text/csv",
