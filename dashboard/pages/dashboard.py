@@ -223,16 +223,27 @@ if not detail.empty:
             hat_debitor_name = "debitor_name" in chart_base.columns
 
             agg_dict = {"offener_betrag_summe": ("offener_betrag", "sum")}
-            if hat_debitor:
-                agg_dict["anzahl_debitoren"] = ("debitor", "nunique")
             if hat_debitor_name:
-                # Jeder Endkunde auf eigener Zeile im Tooltip
+                # Endkunden-Namen: nur Einträge mit echtem Namen (kein nan/leer)
+                _valide_namen = lambda x: sorted(set(
+                    str(v) for v in x.dropna() if str(v) not in ("nan", "", "NaT")
+                ))
+                # Anzahl aus denselben Namen → stimmt immer mit der Liste überein
+                agg_dict["anzahl_debitoren"] = (
+                    "debitor_name",
+                    lambda x: len(set(
+                        str(v) for v in x.dropna() if str(v) not in ("nan", "", "NaT")
+                    ))
+                )
                 agg_dict["endkunden_namen"] = (
                     "debitor_name",
                     lambda x: "\n".join(sorted(set(
                         str(v) for v in x.dropna() if str(v) not in ("nan", "", "NaT")
                     ))) or "—"
                 )
+            elif hat_debitor:
+                # Fallback falls kein debitor_name: IDs zählen
+                agg_dict["anzahl_debitoren"] = ("debitor", "nunique")
 
             kred_agg = chart_base.groupby(grp_cols, as_index=False).agg(**agg_dict)
             kred_agg["betrag_fmt"] = kred_agg["offener_betrag_summe"].apply(fmt_mio)
