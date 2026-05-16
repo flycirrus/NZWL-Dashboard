@@ -350,17 +350,22 @@ if not detail.empty:
             hat_debitor_name = "debitor_name" in chart_base.columns
 
             agg_dict = {"offener_betrag_summe": ("offener_betrag", "sum")}
-            if hat_debitor:
-                agg_dict["anzahl_debitoren"] = ("debitor", "nunique")
+
+            def _unique_namen(x):
+                namen = sorted(set(
+                    str(v) for v in x.dropna() if str(v) not in ("nan", "", "NaT", "None")
+                ))
+                return namen
+
             if hat_debitor_name:
-                agg_dict["endkunden_namen"] = (
-                    "debitor_name",
-                    lambda x: "\n".join(sorted(set(
-                        str(v) for v in x.dropna() if str(v) not in ("nan", "", "NaT")
-                    ))) or "—"
-                )
+                agg_dict["_namen_liste"] = ("debitor_name", _unique_namen)
+            elif hat_debitor:
+                agg_dict["_namen_liste"] = ("debitor", _unique_namen)
 
             kred_agg = chart_base.groupby(grp_cols, as_index=False).agg(**agg_dict)
+            kred_agg["anzahl_debitoren"] = kred_agg["_namen_liste"].apply(len)
+            kred_agg["endkunden_namen"] = kred_agg["_namen_liste"].apply(lambda n: "\n".join(n) if n else "—")
+            kred_agg = kred_agg.drop(columns=["_namen_liste"])
             kred_agg["betrag_fmt"] = kred_agg["offener_betrag_summe"].apply(fmt_mio)
         else:
             kred_agg = pd.DataFrame()
