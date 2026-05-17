@@ -43,24 +43,76 @@ st.markdown("""
               padding-bottom: 0.3rem; }
 .tbl-sep    { border-top: 1px solid #e0e0e0; margin: 0.15rem 0 0.25rem 0; }
 
-/* Zebra-Zellen: gleichmäßige Höhe und Zeilenoptik */
-.tbl-cell       { font-size: 0.88rem; padding: 0.35rem 0.4rem;
-                  line-height: 1.4; border-radius: 3px; }
-.tbl-cell.even  { background: rgba(31, 78, 121, 0.05); }
-.tbl-cell.odd   { background: transparent; }
+/* Zeilen-Zellen: vertikal zentriert, einzeilig = gleiche Höhe für alle Streifen */
+.tbl-cell {
+    font-size: 0.88rem;
+    padding: 0.2rem 0.4rem;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    min-height: 3rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
 
-/* Inaktive Ampel-Buttons: kein Rahmen, kein Hintergrund — nur das Emoji */
-div[data-testid="stButton"] button[kind="secondary"] {
+/* Ampel-Spalte: verschachtelte Sub-Columns vertikal zentrieren */
+div[data-testid="stHorizontalBlock"]
+  div[data-testid="stHorizontalBlock"] {
+    align-items: center !important;
+    min-height: 3rem !important;
+}
+div[data-testid="stHorizontalBlock"]
+  div[data-testid="stHorizontalBlock"]
+  div[data-testid="stColumn"] {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Voller Zeilen-Hintergrund (auch hinter den Ampel-Buttons) */
+.row-strip-even {
+    background: rgba(31, 78, 121, 0.06);
+    height: 3rem;
+    margin-bottom: -3rem;
+    border-radius: 4px;
+}
+
+/* Ampel-Buttons: gemeinsame Basis */
+div[data-testid="stButton"] button[kind="secondary"],
+div[data-testid="stButton"] button[kind="primary"] {
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
-    padding: 0.05rem 0.15rem !important;
+    padding: 0.1rem 0.2rem !important;
     min-height: unset !important;
-    font-size: 1.15rem !important;
+    font-size: 1.25rem !important;
+    line-height: 1 !important;
+    transition: filter 0.15s ease, opacity 0.15s ease !important;
+}
+/* Inaktiv → echtes Grau (kein Farbstich) */
+div[data-testid="stButton"] button[kind="secondary"] {
+    filter: grayscale(100%) opacity(0.35) !important;
 }
 div[data-testid="stButton"] button[kind="secondary"]:hover {
-    background: rgba(0, 0, 0, 0.07) !important;
-    border-radius: 4px !important;
+    filter: grayscale(80%) opacity(0.65) !important;
+}
+/* Aktiv → volle Farbe + leuchten */
+div[data-testid="stButton"] button[kind="primary"] {
+    filter: none !important;
+    opacity: 1 !important;
+}
+
+/* Ampel-Spalte: Buttons vertikal zentrieren */
+div[data-testid="stColumn"] div[data-testid="stHorizontalBlock"] {
+    align-items: center !important;
+}
+div[data-testid="stColumn"] div[data-testid="stHorizontalBlock"]
+  div[data-testid="stColumn"] {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -136,33 +188,72 @@ def woche_label(d):
 WOCHEN_ORDER = ["Überfällig","Diese Woche","Nächste Woche","In 2 Wochen","In 3 Wochen","Später (4+ Wochen)"]
 belege["zeitraum"] = belege["nettofaelligkeit"].apply(woche_label)
 
-# ── KPI-Karten ────────────────────────────────────────────────────────────────
+# ── Ampel-Kennzahlen ──────────────────────────────────────────────────────────
+st.markdown("### Ampel-Status Übersicht")
+ampel_status_alle = lade_ampel_status()
+belege["ampel"] = belege["buchhaltungsbeleg"].astype(str).map(
+    lambda b: ampel_status_alle.get(b, "keine")
+)
+ampel_def = [
+    ("rot",   "🔴", "Stop / Prüfen"),
+    ("gelb",  "🟡", "In Prüfung"),
+    ("gruen", "🟢", "Freigegeben"),
+    ("keine", "⚪", "Kein Status"),
+]
+amp_cols = st.columns(4)
+for col_i, (status_key, emoji, label) in enumerate(ampel_def):
+    sub = belege[belege["ampel"] == status_key]
+    amp_cols[col_i].metric(
+        label=f"{emoji} {label}",
+        value=f"{len(sub)} Belege",
+        delta=fmt_mio(sub["offener_betrag"].sum()) if len(sub) > 0 else "—",
+        delta_color="off",
+    )
+
+st.markdown("---")
+
+# ── KPI-Karten (klickbar als Zeitraum-Filter) ─────────────────────────────────
+if "zeitraum_filter" not in st.session_state:
+    st.session_state["zeitraum_filter"] = "Alle"
+
 st.markdown("### Zahlungen nach Zeitraum")
+st.caption("🔗 Kachel anklicken zum Filtern — nochmals klicken zum Zurücksetzen")
 wochen_summe = (
     belege.groupby("zeitraum")["offener_betrag"]
-    .agg(["sum","count"])
+    .agg(["sum", "count"])
     .reindex(WOCHEN_ORDER, fill_value=0)
 )
-kpi_cols = st.columns(len(WOCHEN_ORDER))
+kpi_cols = st.columns(len(WOCHEN_ORDER) + 1)
 for i, woche in enumerate(WOCHEN_ORDER):
+    is_active = st.session_state["zeitraum_filter"] == woche
     kpi_cols[i].metric(
         woche,
         fmt_mio(wochen_summe.loc[woche, "sum"]),
         f"{int(wochen_summe.loc[woche, 'count'])} Belege",
     )
+    if kpi_cols[i].button(
+        "✓ Aktiv" if is_active else "Filtern",
+        key=f"kpi_btn_{woche}",
+        use_container_width=True,
+    ):
+        st.session_state["zeitraum_filter"] = "Alle" if is_active else woche
+        st.session_state["faellig_page"] = 0
+        st.rerun()
+kpi_cols[-1].metric(" ", " ")
+if kpi_cols[-1].button(
+    "✓ Alle" if st.session_state["zeitraum_filter"] == "Alle" else "Alle",
+    key="kpi_btn_alle", use_container_width=True,
+):
+    st.session_state["zeitraum_filter"] = "Alle"
+    st.session_state["faellig_page"] = 0
+    st.rerun()
 
 st.markdown("---")
 
 # ── Filter ────────────────────────────────────────────────────────────────────
-f1, f2 = st.columns(2)
+zeitraum_filter = st.session_state.get("zeitraum_filter", "Alle")
+f2, f3 = st.columns(2)
 
-# Filter 1: Zeitraum
-zeitraum_filter = f1.selectbox(
-    "Zeitraum anzeigen",
-    ["Alle"] + WOCHEN_ORDER,
-)
-
-# Filter 2: Kalenderwoche
 kw_optionen = sorted(belege["kw_label"].unique(), key=lambda x: (int(x.split("/")[1]), int(x.split()[1])))
 aktuelle_kw_label = f"KW {aktuelle_kw:02d} / {aktuelles_j}"
 default_kw = aktuelle_kw_label if aktuelle_kw_label in kw_optionen else "Alle"
@@ -171,6 +262,8 @@ kw_filter = f2.selectbox(
     ["Alle"] + kw_optionen,
     index=(["Alle"] + kw_optionen).index(default_kw) if default_kw in ["Alle"] + kw_optionen else 0,
 )
+_kred_liste = ["Alle"] + sorted(belege["kreditor_name"].dropna().unique().tolist())
+kreditor_filter = f3.selectbox("Kreditor", _kred_liste)
 
 # Filter anwenden
 belege_filtered = belege.copy()
@@ -178,6 +271,8 @@ if zeitraum_filter != "Alle":
     belege_filtered = belege_filtered[belege_filtered["zeitraum"] == zeitraum_filter]
 if kw_filter != "Alle":
     belege_filtered = belege_filtered[belege_filtered["kw_label"] == kw_filter]
+if kreditor_filter != "Alle":
+    belege_filtered = belege_filtered[belege_filtered["kreditor_name"] == kreditor_filter]
 
 # ── Sortierung anwenden ──────────────────────────────────────────────────────
 # Sortierbare Spalten: name im DF → Anzeigename
@@ -294,22 +389,29 @@ st.markdown('<div class="tbl-sep"></div>', unsafe_allow_html=True)
 page_start = cur_page * PAGE_SIZE
 page_rows  = belege_filtered.iloc[page_start : page_start + PAGE_SIZE]
 
-def _cell(col, text, zeile_gerade: bool = False):
-    css = "even" if zeile_gerade else "odd"
-    col.markdown(f'<div class="tbl-cell {css}">{text}</div>', unsafe_allow_html=True)
+def _cell(col, text):
+    """Zelle mit Ellipsis bei langem Text + Tooltip zum Lesen."""
+    plain = str(text).replace('<code>', '').replace('</code>', '')
+    col.markdown(
+        f'<div class="tbl-cell" title="{plain}">{text}</div>',
+        unsafe_allow_html=True,
+    )
 
 for zeilen_idx, (_, row) in enumerate(page_rows.iterrows()):
     gerade      = (zeilen_idx % 2 == 0)
     beleg_id    = str(row["buchhaltungsbeleg"])
     current_status = ampel_status.get(beleg_id, "keine")
 
+    # ── Voller Zeilen-Hintergrund (deckt auch die Ampel-Spalte ab) ────────────
+    # Der Strip ist 3rem hoch und wird mit margin-bottom:-3rem "hinter" die
+    # nachfolgende st.columns()-Zeile geschoben, sodass alle Spalten darauf liegen.
+    if gerade:
+        st.markdown('<div class="row-strip-even"></div>', unsafe_allow_html=True)
+
     row_cols = st.columns(COL_W)
 
-    # Ampel: 3 Buttons eng nebeneinander (kein use_container_width)
-    # Aktiver Button = "primary", inaktive = "secondary" (borderless per CSS)
-    # Klick auf bereits aktiven → zurücksetzen auf "keine"
+    # Ampel: 3 Buttons eng nebeneinander
     with row_cols[0]:
-        # [1,1,1,2]: Buttons links verpackt, rechts Leerraum
         btn_cols = st.columns([1, 1, 1, 2])
         for i, (status_key, (emoji, label)) in enumerate(AMPEL.items()):
             is_active = (current_status == status_key)
@@ -318,9 +420,8 @@ for zeilen_idx, (_, row) in enumerate(page_rows.iterrows()):
                 key=f"ampel_{beleg_id}_{status_key}",
                 type="primary" if is_active else "secondary",
                 help=f"{label} (nochmals klicken zum Zurücksetzen)" if is_active else label,
-                use_container_width=False,  # kompakt: kein Strecken
+                use_container_width=False,
             ):
-                # Nochmals klicken → auf "keine" setzen
                 new_status = "keine" if is_active else status_key
                 speichere_ampel_status(beleg_id, new_status)
                 ampel_status[beleg_id] = new_status
@@ -330,12 +431,12 @@ for zeilen_idx, (_, row) in enumerate(page_rows.iterrows()):
                 )
                 st.rerun()
 
-    _cell(row_cols[1], row["nettofaelligkeit"].strftime("%d.%m.%Y"), gerade)
-    _cell(row_cols[2], f"<code>{beleg_id}</code>",                    gerade)
-    _cell(row_cols[3], str(row.get("kreditor_name", "—")),            gerade)
-    _cell(row_cols[4], fmt_eur(row["offener_betrag"]),                 gerade)
+    _cell(row_cols[1], row["nettofaelligkeit"].strftime("%d.%m.%Y"))
+    _cell(row_cols[2], f"<code>{beleg_id}</code>")
+    _cell(row_cols[3], str(row.get("kreditor_name", "—")))
+    _cell(row_cols[4], fmt_eur(row["offener_betrag"]))
     endkunden = str(row.get("debitor_name", ""))
-    _cell(row_cols[5], endkunden if endkunden not in ("", "nan") else "—", gerade)
+    _cell(row_cols[5], endkunden if endkunden not in ("", "nan") else "—")
 
 st.markdown('<div class="tbl-sep" style="margin-top:0.5rem;"></div>', unsafe_allow_html=True)
 

@@ -116,11 +116,17 @@ def fmt_mio(betrag: float) -> str:
 
 
 # ── KPI-Karten ────────────────────────────────────────────────────────────────
-gesamt_betrag = (
-    uebersicht["offener_betrag_summe"].sum()
-    if not uebersicht.empty and "offener_betrag_summe" in uebersicht.columns
-    else 0.0
-)
+# Gesamtverbindlichkeiten: eindeutig pro Buchhaltungsbeleg (sonst Mehrfachzählung durch BOM-Join)
+if not detail.empty and "buchhaltungsbeleg" in detail.columns and "offener_betrag" in detail.columns:
+    gesamt_betrag = (
+        detail.drop_duplicates(subset=["buchhaltungsbeleg"])["offener_betrag"].sum()
+    )
+else:
+    gesamt_betrag = (
+        uebersicht["offener_betrag_summe"].sum()
+        if not uebersicht.empty and "offener_betrag_summe" in uebersicht.columns
+        else 0.0
+    )
 
 st.markdown("### Kennzahlen")
 col1, col2, col3, col4 = st.columns(4)
@@ -129,8 +135,9 @@ col1.metric(
     label="Gesamtverbindlichkeiten",
     value=fmt_mio(gesamt_betrag),
 )
+col1.caption("💡 Summe aller offenen Belege (OPOS), je Beleg einmalig gezählt")
 col2.metric(
-    label="Kreditoren (verknuepft / gesamt)",
+    label="Kreditoren (verknüpft / gesamt)",
     value=f"{stat.get('Kreditoren bis Debitor (Schritt 4)', '?')} / {stat.get('Kreditoren gesamt (OPOS)', '?')}",
 )
 col3.metric(
