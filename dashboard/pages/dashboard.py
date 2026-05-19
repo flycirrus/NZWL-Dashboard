@@ -167,12 +167,18 @@ if not detail.empty and "nettofaelligkeit" in detail.columns:
     df_faellig_week_unique = df_faellig_week.drop_duplicates(subset=["buchhaltungsbeleg"])
 
     heute = pd.Timestamp.now().normalize()
+    # ISO-Kalenderwochen-Grenzen: Montag dieser KW als Ankerpunkt
+    heute_montag   = heute - pd.Timedelta(days=heute.weekday())  # Montag der aktuellen KW
+    naechste_kw    = heute_montag + pd.Timedelta(weeks=1)
+    in_2_wochen    = heute_montag + pd.Timedelta(weeks=2)
+    in_3_wochen    = heute_montag + pd.Timedelta(weeks=3)
+
     df_faellig_week_unique = df_faellig_week_unique.copy()
     df_faellig_week_unique["woche"] = df_faellig_week_unique["nettofaelligkeit"].apply(
-        lambda d: "Ueberfaellig" if d < heute
-        else "Diese Woche" if d < heute + pd.Timedelta(days=7)
-        else "Naechste Woche" if d < heute + pd.Timedelta(days=14)
-        else "In 2 Wochen" if d < heute + pd.Timedelta(days=21)
+        lambda d: "Ueberfaellig"   if d < heute_montag
+        else "Diese Woche"         if d < naechste_kw
+        else "Naechste Woche"      if d < in_2_wochen
+        else "In 2 Wochen"         if d < in_3_wochen
         else "Spaeter"
     )
 
