@@ -66,6 +66,7 @@ with col_refresh:
 
 daten = lade_ergebnis_daten()
 detail = daten["detail"]
+nv_raw = daten.get("nicht_verknuepft", pd.DataFrame())
 uebersicht = daten["uebersicht"]
 statistik = daten["statistik"]
 
@@ -152,19 +153,37 @@ col4.metric(
 st.markdown("---")
 
 # ── Faelligkeiten (Wochenansicht) ─────────────────────────────────────────────────────
+# Gleiche Datenbasis wie Fälligkeiten-Seite: detail (dedupliziert) + nv_raw
 df_faellig_week = pd.DataFrame()  # used later for chart filtering
 
 if not detail.empty and "nettofaelligkeit" in detail.columns:
     st.subheader("Faelligkeiten nach Woche")
     st.caption("Klicken zum Filtern der Diagramme unten.")
 
-    _cols_needed = [c for c in ["buchhaltungsbeleg", "kreditor_name", "kreditor",
-                                 "offener_betrag", "nettofaelligkeit", "debitor_name", "debitor"]
-                    if c in detail.columns]
-    df_faellig_week = detail[_cols_needed].copy()
-    df_faellig_week["nettofaelligkeit"] = pd.to_datetime(df_faellig_week["nettofaelligkeit"], errors="coerce")
-    df_faellig_week = df_faellig_week.dropna(subset=["nettofaelligkeit"])
-    df_faellig_week_unique = df_faellig_week.drop_duplicates(subset=["buchhaltungsbeleg"])
+    # ── Datenbasis: identisch zur Fälligkeiten-Seite ──────────────────────────
+    _df = detail.copy()
+    _df["nettofaelligkeit"] = pd.to_datetime(_df["nettofaelligkeit"], errors="coerce")
+    _df = _df.dropna(subset=["nettofaelligkeit"])
+
+    # Pro Buchhaltungsbeleg eine Zeile (wie in faelligkeiten.py)
+    _agg_cols = {"kreditor_name": "first", "kreditor": "first",
+                 "offener_betrag": "first", "nettofaelligkeit": "first"}
+    _agg_cols = {k: v for k, v in _agg_cols.items() if k in _df.columns}
+    belege_dash = _df.groupby("buchhaltungsbeleg", as_index=False).agg(_agg_cols)
+
+    # Nicht-verknüpfte Positionen hinzufügen (nv_raw)
+    if not nv_raw.empty and "nettofaelligkeit" in nv_raw.columns:
+        _nv = nv_raw.copy()
+        _nv["nettofaelligkeit"] = pd.to_datetime(_nv["nettofaelligkeit"], errors="coerce")
+        _nv = _nv.dropna(subset=["nettofaelligkeit"])
+        if not _nv.empty:
+            for c in belege_dash.columns:
+                if c not in _nv.columns:
+                    _nv[c] = "" if belege_dash[c].dtype == object else 0
+            belege_dash = pd.concat([belege_dash, _nv[belege_dash.columns]], ignore_index=True)
+
+    df_faellig_week = belege_dash.copy()
+    df_faellig_week_unique = belege_dash.copy()
 
     heute = pd.Timestamp.now().normalize()
     # ISO-Kalenderwochen-Grenzen: Montag dieser KW als Ankerpunkt
@@ -173,7 +192,6 @@ if not detail.empty and "nettofaelligkeit" in detail.columns:
     in_2_wochen    = heute_montag + pd.Timedelta(weeks=2)
     in_3_wochen    = heute_montag + pd.Timedelta(weeks=3)
 
-    df_faellig_week_unique = df_faellig_week_unique.copy()
     df_faellig_week_unique["woche"] = df_faellig_week_unique["nettofaelligkeit"].apply(
         lambda d: "Ueberfaellig"   if d < heute_montag
         else "Diese Woche"         if d < naechste_kw
