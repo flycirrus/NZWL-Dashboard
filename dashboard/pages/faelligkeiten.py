@@ -253,7 +253,12 @@ for i, woche in enumerate(WOCHEN_ORDER):
         key=f"kpi_btn_{woche}",
         use_container_width=True,
     ):
-        st.session_state["zeitraum_filter"] = "Alle" if is_active else woche
+        if is_active:
+            st.session_state["zeitraum_filter"] = "Alle"
+        else:
+            st.session_state["zeitraum_filter"] = woche
+            # KW-Filter zurücksetzen, damit Zeitraum-Filter allein greift
+            st.session_state["kw_filter_override"] = "Alle"
         st.session_state["faellig_page"] = 0
         st.rerun()
 kpi_cols[-1].metric(" ", " ")
@@ -272,12 +277,23 @@ zeitraum_filter = st.session_state.get("zeitraum_filter", "Alle")
 f2, f3, f4 = st.columns(3)
 
 kw_optionen = sorted(belege["kw_label"].unique(), key=lambda x: (int(x.split("/")[1]), int(x.split()[1])))
-aktuelle_kw_label = f"KW {aktuelle_kw:02d} / {aktuelles_j}"
-default_kw = aktuelle_kw_label if aktuelle_kw_label in kw_optionen else "Alle"
+
+# KW-Filter: wenn Zeitraum-Filter aktiv ist oder ein Override gesetzt wurde → "Alle"
+_kw_override = st.session_state.pop("kw_filter_override", None)
+if _kw_override is not None:
+    kw_default_idx = 0  # "Alle"
+else:
+    aktuelle_kw_label = f"KW {aktuelle_kw:02d} / {aktuelles_j}"
+    # Nur auf aktuelle KW vorauswählen wenn KEIN Zeitraum-Filter aktiv
+    if zeitraum_filter == "Alle" and aktuelle_kw_label in kw_optionen:
+        kw_default_idx = (["Alle"] + kw_optionen).index(aktuelle_kw_label)
+    else:
+        kw_default_idx = 0  # "Alle"
+
 kw_filter = f2.selectbox(
     "Kalenderwoche",
     ["Alle"] + kw_optionen,
-    index=(["Alle"] + kw_optionen).index(default_kw) if default_kw in ["Alle"] + kw_optionen else 0,
+    index=kw_default_idx,
 )
 _kred_liste = ["Alle"] + sorted(belege["kreditor_name"].dropna().unique().tolist())
 kreditor_filter = f3.selectbox("Kreditor", _kred_liste)
@@ -329,8 +345,27 @@ if st.session_state.get("faellig_last_filter") != filter_key:
 
 cur_page = min(st.session_state.get("faellig_page", 0), total_pages - 1)
 
-# ── Überschrift ───────────────────────────────────────────────────────────────
-st.subheader(f"Rechnungen — {zeitraum_filter}" + (f" | {kw_filter}" if kw_filter != "Alle" else ""))
+# ── Überschrift: dynamisch mit echten KWs ────────────────────────────────────
+def _zeitraum_kw_label(zeitraum: str) -> str:
+    """Gibt die KW(s) zurück, die dem gewählten Zeitraum entsprechen."""
+    if zeitraum == "Alle":
+        return ""
+    # Alle Belege in diesem Zeitraum → welche KWs sind das?
+    subset = belege[belege["zeitraum"] == zeitraum]
+    if subset.empty:
+        return ""
+    kws = subset["nettofaelligkeit"].dt.isocalendar().week.astype(int).unique()
+    jahre = subset["nettofaelligkeit"].dt.year.unique()
+    kws_sorted = sorted(set(kws))
+    if len(kws_sorted) == 0:
+        return ""
+    elif len(kws_sorted) == 1:
+        return f" · KW {kws_sorted[0]:02d}"
+    else:
+        return f" · KW {kws_sorted[0]:02d}–{kws_sorted[-1]:02d}"
+
+_kw_suffix = _zeitraum_kw_label(zeitraum_filter) if kw_filter == "Alle" else f" | {kw_filter}"
+st.subheader(f"Rechnungen — {zeitraum_filter}{_kw_suffix}")
 st.caption(
     f"{total} Belege  |  Gesamt: {fmt_eur(belege_filtered['offener_betrag'].sum())}  |  "
     f"Seite {cur_page+1} von {total_pages}"
