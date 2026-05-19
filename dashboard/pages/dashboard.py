@@ -229,9 +229,6 @@ if not detail.empty:
             hat_debitor = "debitor" in chart_base.columns
             hat_debitor_name = "debitor_name" in chart_base.columns
 
-            # Hilfsfunktion: debitor_name-Werte koennen bereits kommagetrennte
-            # Mehrfachnamen enthalten (Kernlogik-Aggregat). Deshalb immer
-            # zuerst per Komma aufsplitten, dann deduplizieren.
             def _namen_set(series):
                 namen = set()
                 for v in series.dropna():
@@ -241,22 +238,25 @@ if not detail.empty:
                             namen.add(teil)
                 return namen
 
-            agg_dict = {"offener_betrag_summe": ("offener_betrag", "sum")}
-            if hat_debitor_name:
-                # Anzahl und Namen aus derselben Logik → immer konsistent
-                agg_dict["anzahl_debitoren"] = (
-                    "debitor_name",
-                    lambda x: len(_namen_set(x))
-                )
-                agg_dict["endkunden_namen"] = (
-                    "debitor_name",
-                    lambda x: ", ".join(sorted(_namen_set(x))) or "—"
-                )
-            elif hat_debitor:
-                # Fallback falls kein debitor_name: IDs zaehlen
-                agg_dict["anzahl_debitoren"] = ("debitor", "nunique")
+            # Betrag: pro Beleg nur einmal zaehlen (BOM-Join vervielfacht Zeilen)
+            chart_belege = chart_base.drop_duplicates(subset=["buchhaltungsbeleg"])
+            kred_agg = chart_belege.groupby(grp_cols, as_index=False).agg(
+                offener_betrag_summe=("offener_betrag", "sum")
+            )
 
-            kred_agg = chart_base.groupby(grp_cols, as_index=False).agg(**agg_dict)
+            # Debitoren: aus allen Detail-Zeilen (verschiedene Debitoren pro Zeile)
+            if hat_debitor_name:
+                deb_agg = chart_base.groupby(grp_cols, as_index=False).agg(
+                    anzahl_debitoren=("debitor_name", lambda x: len(_namen_set(x))),
+                    endkunden_namen=("debitor_name", lambda x: ", ".join(sorted(_namen_set(x))) or "—"),
+                )
+                kred_agg = kred_agg.merge(deb_agg, on=grp_cols, how="left")
+            elif hat_debitor:
+                deb_agg = chart_base.groupby(grp_cols, as_index=False).agg(
+                    anzahl_debitoren=("debitor", "nunique")
+                )
+                kred_agg = kred_agg.merge(deb_agg, on=grp_cols, how="left")
+
             kred_agg["betrag_fmt"] = kred_agg["offener_betrag_summe"].apply(fmt_mio)
         else:
             kred_agg = pd.DataFrame()

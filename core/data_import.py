@@ -36,7 +36,7 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = [_normalize_col(c) for c in df.columns]
     return df
 
-TABELLEN = ["ergebnis_detail", "ergebnis_uebersicht", "ergebnis_statistik"]
+TABELLEN = ["ergebnis_detail", "ergebnis_uebersicht", "ergebnis_statistik", "opos_nicht_verknuepft"]
 TABELLE_AMPEL = "beleg_ampel_status"
 AMPEL_JSON_FALLBACK = str(Path(__file__).resolve().parent.parent / "data" / "output" / "ampel_status_v2.json")
 
@@ -187,7 +187,7 @@ def _lade_aus_mariadb():
         }
 
     daten = {}
-    keys = ["detail", "uebersicht", "statistik"]
+    keys = ["detail", "uebersicht", "statistik", "nicht_verknuepft"]
     for tabelle, key in zip(TABELLEN, keys):
         try:
             df = pd.read_sql(f"SELECT * FROM {tabelle}", conn)
@@ -201,7 +201,7 @@ def _lade_aus_mariadb():
 
 def _lade_aus_json(pfad):
     daten = {}
-    keys = ["detail", "uebersicht", "statistik"]
+    keys = ["detail", "uebersicht", "statistik", "nicht_verknuepft"]
     for tabelle, key in zip(TABELLEN, keys):
         datei = os.path.join(pfad, f"{tabelle}.json")
         if os.path.exists(datei):

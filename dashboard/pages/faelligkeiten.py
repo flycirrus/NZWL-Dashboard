@@ -122,6 +122,7 @@ st.title("Fälligkeiten — Was muss wann bezahlt werden?")
 
 daten        = lade_ergebnis_daten()
 detail       = daten["detail"]
+nv_raw       = daten.get("nicht_verknuepft", pd.DataFrame())
 ampel_status = lade_ampel_status()
 
 if detail.empty:
@@ -152,6 +153,22 @@ belege = df.groupby("buchhaltungsbeleg", as_index=False).agg({
         if teil.strip() and teil.strip() not in ("nan", "NaT", "")
     })),
 })
+
+belege["verknuepft"] = True
+belege["grund"] = ""
+belege["branche"] = ""
+
+if not nv_raw.empty and "nettofaelligkeit" in nv_raw.columns:
+    nv = nv_raw.copy()
+    nv["nettofaelligkeit"] = pd.to_datetime(nv["nettofaelligkeit"], errors="coerce")
+    nv = nv.dropna(subset=["nettofaelligkeit"])
+    if not nv.empty:
+        nv["debitor_name"] = ""
+        nv["verknuepft"] = False
+        for c in belege.columns:
+            if c not in nv.columns:
+                nv[c] = "" if belege[c].dtype == object else 0
+        belege = pd.concat([belege, nv[belege.columns]], ignore_index=True)
 
 if belege.empty:
     st.info("Keine Belege mit Fälligkeitsdatum vorhanden.")
@@ -252,7 +269,7 @@ st.markdown("---")
 
 # ── Filter ────────────────────────────────────────────────────────────────────
 zeitraum_filter = st.session_state.get("zeitraum_filter", "Alle")
-f2, f3 = st.columns(2)
+f2, f3, f4 = st.columns(3)
 
 kw_optionen = sorted(belege["kw_label"].unique(), key=lambda x: (int(x.split("/")[1]), int(x.split()[1])))
 aktuelle_kw_label = f"KW {aktuelle_kw:02d} / {aktuelles_j}"
@@ -264,6 +281,10 @@ kw_filter = f2.selectbox(
 )
 _kred_liste = ["Alle"] + sorted(belege["kreditor_name"].dropna().unique().tolist())
 kreditor_filter = f3.selectbox("Kreditor", _kred_liste)
+verknuepfung_filter = f4.selectbox(
+    "Verknüpfung",
+    ["Alle", "Verknüpft (mit Debitor)", "Nicht verknüpft"],
+)
 
 # Filter anwenden
 belege_filtered = belege.copy()
@@ -273,6 +294,10 @@ if kw_filter != "Alle":
     belege_filtered = belege_filtered[belege_filtered["kw_label"] == kw_filter]
 if kreditor_filter != "Alle":
     belege_filtered = belege_filtered[belege_filtered["kreditor_name"] == kreditor_filter]
+if verknuepfung_filter == "Verknüpft (mit Debitor)":
+    belege_filtered = belege_filtered[belege_filtered["verknuepft"] == True]
+elif verknuepfung_filter == "Nicht verknüpft":
+    belege_filtered = belege_filtered[belege_filtered["verknuepft"] == False]
 
 # ── Sortierung anwenden ──────────────────────────────────────────────────────
 # Sortierbare Spalten: name im DF → Anzeigename
@@ -294,7 +319,7 @@ total       = len(belege_filtered)
 total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
 
 # Seite zurücksetzen bei Filterwechsel
-filter_key = f"{zeitraum_filter}|{kw_filter}"
+filter_key = f"{zeitraum_filter}|{kw_filter}|{verknuepfung_filter}"
 if st.session_state.get("faellig_last_filter") != filter_key:
     st.session_state["faellig_page"]        = 0
     st.session_state["faellig_last_filter"] = filter_key
@@ -373,8 +398,8 @@ if hdr[4].button(_sort_label("offener_betrag", "Betrag"), key="srt_betrag", use_
     st.session_state["faellig_page"] = 0
     st.rerun()
 
-# [5] Endkunden
-if hdr[5].button(_sort_label("debitor_name", "Endkunden"), key="srt_endkunden", use_container_width=True):
+# [5] Endkunden / Grund
+if hdr[5].button(_sort_label("debitor_name", "Endkunden / Grund"), key="srt_endkunden", use_container_width=True):
     if st.session_state["faellig_sort_col"] == "debitor_name":
         st.session_state["faellig_sort_asc"] = not st.session_state["faellig_sort_asc"]
     else:
@@ -435,8 +460,16 @@ for zeilen_idx, (_, row) in enumerate(page_rows.iterrows()):
     _cell(row_cols[2], f"<code>{beleg_id}</code>")
     _cell(row_cols[3], str(row.get("kreditor_name", "—")))
     _cell(row_cols[4], fmt_eur(row["offener_betrag"]))
-    endkunden = str(row.get("debitor_name", ""))
-    _cell(row_cols[5], endkunden if endkunden not in ("", "nan") else "—")
+    if row.get("verknuepft", True):
+        endkunden = str(row.get("debitor_name", ""))
+        _cell(row_cols[5], endkunden if endkunden not in ("", "nan") else "—")
+    else:
+        grund = str(row.get("grund", ""))
+        branche = str(row.get("branche", ""))
+        tag = f"{grund}"
+        if branche and branche not in ("", "nan"):
+            tag += f" · {branche}"
+        _cell(row_cols[5], f'<span style="color:#999;font-style:italic">{tag}</span>')
 
 st.markdown('<div class="tbl-sep" style="margin-top:0.5rem;"></div>', unsafe_allow_html=True)
 
