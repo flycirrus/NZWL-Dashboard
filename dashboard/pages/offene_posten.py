@@ -64,7 +64,7 @@ if quelle_filter != "Alle":
 st.markdown("---")
 c1, c2, c3, c4 = st.columns(4)
 
-betrag = gefiltert["offener_betrag"].sum() if "offener_betrag" in gefiltert.columns else 0
+betrag = gefiltert.drop_duplicates(subset=["buchhaltungsbeleg"])["offener_betrag"].sum() if "offener_betrag" in gefiltert.columns and "buchhaltungsbeleg" in gefiltert.columns else 0
 belege = gefiltert["buchhaltungsbeleg"].nunique() if "buchhaltungsbeleg" in gefiltert.columns else 0
 
 c1.metric("Buchungsbelege", f"{belege:,}")
