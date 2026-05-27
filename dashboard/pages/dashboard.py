@@ -286,7 +286,7 @@ if not nv_raw.empty:
                 )
 
                 st.altair_chart(
-                    (bar_branche + text_betrag).properties(height=280),
+                    (bar_branche + text_betrag).properties(height=240, padding={"top": 15}),
                     use_container_width=True,
                 )
 
