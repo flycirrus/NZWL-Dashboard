@@ -117,11 +117,13 @@ def fmt_mio(betrag: float) -> str:
 
 
 # ── KPI-Karten ────────────────────────────────────────────────────────────────
-# Gesamtverbindlichkeiten: eindeutig pro Buchhaltungsbeleg (sonst Mehrfachzählung durch BOM-Join)
+# Gesamtverbindlichkeiten: verknuepft + nicht verknuepft = kompletter OPOS-Master
 if not detail.empty and "buchhaltungsbeleg" in detail.columns and "offener_betrag" in detail.columns:
     gesamt_betrag = (
         detail.drop_duplicates(subset=["buchhaltungsbeleg"])["offener_betrag"].sum()
     )
+    if not nv_raw.empty and "offener_betrag" in nv_raw.columns:
+        gesamt_betrag += nv_raw["offener_betrag"].sum()
 else:
     gesamt_betrag = (
         uebersicht["offener_betrag_summe"].sum()
