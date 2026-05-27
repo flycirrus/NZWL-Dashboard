@@ -186,10 +186,10 @@ if not nv_raw.empty:
         _branche_col = "branche" if "branche" in _nv.columns else None
         _betrag_col = "offener_betrag" if "offener_betrag" in _nv.columns else None
 
-        # ── 1) KPI-Karten pro Grund (Anzahl + Betrag) ────────────────────────
-        if _grund_col and _betrag_col:
-            st.markdown("##### Gründe für fehlende Verknüpfung")
+        nv_col_left, nv_col_right = st.columns(2)
 
+        # ── 1) Donut-Chart nach Grund (Anzahl + Betrag als Label) ────────────
+        if _grund_col and _betrag_col:
             grund_agg = _nv.groupby(_grund_col).agg(
                 Anzahl=(_grund_col, "count"),
                 Betrag=(_betrag_col, "sum"),
@@ -201,38 +201,6 @@ if not nv_raw.empty:
             grund_agg["Anteil_betrag"] = (
                 grund_agg["Betrag"].abs() / grund_agg["Betrag"].abs().sum() * 100
             ).round(1)
-
-            # KPI-Karten: eine pro Grund + Gesamtsumme
-            grund_kpi_cols = st.columns(len(grund_agg) + 1)
-
-            # Gesamt-Karte
-            _gesamt_betrag_nv = _nv[_betrag_col].sum()
-            grund_kpi_cols[0].metric(
-                label="Gesamt nicht verknüpft",
-                value=f"{len(_nv)} Belege",
-                delta=fmt_mio(_gesamt_betrag_nv),
-                delta_color="off",
-            )
-
-            # Einzelne Gründe
-            _grund_farben = {"Materialnummer fehlt in Rechnungsposition": "🔴",
-                             "Kein BOM-Match": "🟠",
-                             "Kein Buchungsschluessel 86/40": "🔵"}
-            for i, (_, row) in enumerate(grund_agg.iterrows()):
-                emoji = _grund_farben.get(row["Grund"], "⚪")
-                grund_kpi_cols[i + 1].metric(
-                    label=f"{emoji} {row['Grund']}",
-                    value=f"{int(row['Anzahl'])} Belege ({row['Anteil']}%)",
-                    delta=f"{row['Betrag_fmt']}",
-                    delta_color="off",
-                )
-
-        st.markdown("")
-
-        nv_col_left, nv_col_right = st.columns(2)
-
-        # ── 2) Donut-Chart nach Grund (Anzahl + Betrag als Label) ────────────
-        if _grund_col and _betrag_col:
             grund_agg["Donut_Label"] = grund_agg.apply(
                 lambda r: f"{int(r['Anzahl'])} Belege\n{r['Betrag_fmt']}", axis=1
             )
