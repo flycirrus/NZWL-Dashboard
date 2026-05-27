@@ -151,6 +151,21 @@ col4.metric(
     label="Match-Quote",
     value=stat.get("Gesamte Match-Quote", "?"),
 )
+# Beträge: verknüpft vs. nicht verknüpft
+_betrag_verknuepft = (
+    detail.drop_duplicates(subset=["buchhaltungsbeleg"])["offener_betrag"].sum()
+    if not detail.empty and "buchhaltungsbeleg" in detail.columns and "offener_betrag" in detail.columns
+    else 0.0
+)
+_betrag_nicht_verknuepft = (
+    nv_raw["offener_betrag"].sum()
+    if not nv_raw.empty and "offener_betrag" in nv_raw.columns
+    else 0.0
+)
+col4.caption(
+    f"🟢 Verknüpft: **{fmt_mio(_betrag_verknuepft)}**  \n"
+    f"🔴 Nicht verknüpft: **{fmt_mio(_betrag_nicht_verknuepft)}**"
+)
 
 st.markdown("---")
 
