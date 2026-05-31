@@ -253,7 +253,7 @@ else:
     }
     
     if st.session_state.role == "admin":
-        pages["Nutzerverwaltung"] = str(_pages_dir / "admin.py")
+        pages["Admin-Bereich"] = str(_pages_dir / "admin.py")
 
     # Global Sidebar Elements
     with st.sidebar:

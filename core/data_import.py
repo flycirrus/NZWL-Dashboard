@@ -71,37 +71,68 @@ def _get_db_conn():
 
 
 def _ensure_ampel_table(conn):
-    """Erstellt die Ampel-Tabelle in MariaDB falls nicht vorhanden."""
+    """Erstellt die Ampel-Historien-Tabelle in MariaDB falls nicht vorhanden und migriert ggf. alte Daten."""
     with conn.cursor() as cur:
+        # 1. Sicherstellen, dass die Historie-Tabelle existiert
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS beleg_ampel_status (
+            CREATE TABLE IF NOT EXISTS beleg_ampel_status_history (
+                id INT AUTO_INCREMENT PRIMARY KEY,
                 buchhaltungsbeleg VARCHAR(50) NOT NULL,
-                ampel_status      ENUM('keine','rot','gelb','gruen') NOT NULL DEFAULT 'keine',
-                geaendert_am      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                ampel_status      VARCHAR(20) NOT NULL DEFAULT 'keine',
+                geaendert_am      DATETIME DEFAULT CURRENT_TIMESTAMP,
                 geaendert_von     VARCHAR(100) DEFAULT NULL,
-                PRIMARY KEY (buchhaltungsbeleg)
+                INDEX idx_beleg (buchhaltungsbeleg)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """)
         conn.commit()
 
+        # 2. Prüfen, ob die Historie leer ist
+        cur.execute("SELECT COUNT(*) FROM beleg_ampel_status_history")
+        count_history = cur.fetchone()[0]
+
+        # 3. Wenn Historie leer ist, prüfen ob alte Tabelle existiert und Daten hat
+        if count_history == 0:
+            try:
+                cur.execute("SELECT COUNT(*) FROM beleg_ampel_status")
+                count_old = cur.fetchone()[0]
+                if count_old > 0:
+                    # Migrieren der alten Daten in die Historie
+                    cur.execute("""
+                        INSERT INTO beleg_ampel_status_history 
+                            (buchhaltungsbeleg, ampel_status, geaendert_am, geaendert_von)
+                        SELECT 
+                            buchhaltungsbeleg, ampel_status, geaendert_am, geaendert_von 
+                        FROM beleg_ampel_status
+                    """)
+                    conn.commit()
+            except Exception:
+                # Alte Tabelle existiert eventuell nicht, ignorieren
+                pass
+
 
 def lade_ampel_status() -> dict:
     """
-    Laedt den Ampel-Status aller Belege.
-    Windows: MariaDB-Tabelle 'beleg_ampel_status'
+    Laedt den aktuellen Ampel-Status aller Belege (jeweils der neueste Eintrag).
+    Windows: MariaDB-Tabelle 'beleg_ampel_status_history'
     Mac/Fallback: JSON-Datei
     Gibt dict {buchhaltungsbeleg: status_string} zurueck.
-    Diese Tabelle wird von der Kernlogik NIEMALS ueberschrieben.
     """
     if os.name == "nt":
         conn = _get_db_conn()
         if conn:
             try:
                 _ensure_ampel_table(conn)
-                df = pd.read_sql(
-                    f"SELECT buchhaltungsbeleg, ampel_status FROM {TABELLE_AMPEL}",
-                    conn,
-                )
+                # Abfrage fuer den jeweils neuesten Eintrag pro Beleg
+                query = """
+                    SELECT h1.buchhaltungsbeleg, h1.ampel_status
+                    FROM beleg_ampel_status_history h1
+                    INNER JOIN (
+                        SELECT buchhaltungsbeleg, MAX(id) as max_id
+                        FROM beleg_ampel_status_history
+                        GROUP BY buchhaltungsbeleg
+                    ) h2 ON h1.id = h2.max_id
+                """
+                df = pd.read_sql(query, conn)
                 conn.close()
                 return dict(zip(df["buchhaltungsbeleg"].astype(str), df["ampel_status"]))
             except Exception:
@@ -113,7 +144,16 @@ def lade_ampel_status() -> dict:
     if os.path.exists(AMPEL_JSON_FALLBACK):
         try:
             with open(AMPEL_JSON_FALLBACK, "r", encoding="utf-8") as f:
-                return json.load(f)
+                content = json.load(f)
+                if isinstance(content, list):
+                    # Historie durchlaufen und den jeweils neuesten Status extrahieren
+                    latest = {}
+                    for record in content:
+                        b_id = str(record.get("buchhaltungsbeleg"))
+                        latest[b_id] = record.get("ampel_status", "keine")
+                    return latest
+                elif isinstance(content, dict):
+                    return content
         except Exception:
             pass
     return {}
@@ -121,10 +161,19 @@ def lade_ampel_status() -> dict:
 
 def speichere_ampel_status(beleg_id: str, status: str, user: str = None) -> bool:
     """
-    Speichert den Ampel-Status eines einzelnen Belegs.
+    Speichert den Ampel-Status eines einzelnen Belegs in der Historie.
     status: 'keine' | 'rot' | 'gelb' | 'gruen'
     Windows: MariaDB | Mac/Fallback: JSON-Datei
     """
+    if user is None:
+        try:
+            if "user" in st.session_state and st.session_state.user:
+                user = st.session_state.user.get("name", "System")
+        except Exception:
+            pass
+    if user is None:
+        user = "System"
+
     if os.name == "nt":
         conn = _get_db_conn()
         if conn:
@@ -132,13 +181,9 @@ def speichere_ampel_status(beleg_id: str, status: str, user: str = None) -> bool
                 _ensure_ampel_table(conn)
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO beleg_ampel_status
-                            (buchhaltungsbeleg, ampel_status, geaendert_von)
-                        VALUES (%s, %s, %s)
-                        ON DUPLICATE KEY UPDATE
-                            ampel_status  = VALUES(ampel_status),
-                            geaendert_von = VALUES(geaendert_von),
-                            geaendert_am  = CURRENT_TIMESTAMP
+                        INSERT INTO beleg_ampel_status_history
+                            (buchhaltungsbeleg, ampel_status, geaendert_von, geaendert_am)
+                        VALUES (%s, %s, %s, NOW())
                     """, (str(beleg_id), status, user))
                     conn.commit()
                 conn.close()
@@ -148,19 +193,93 @@ def speichere_ampel_status(beleg_id: str, status: str, user: str = None) -> bool
                     conn.close()
                 except Exception:
                     pass
-    # Fallback: JSON
+
+    # Fallback: JSON-Historie (Liste von Einträgen)
     try:
-        existing = {}
+        history_records = []
         if os.path.exists(AMPEL_JSON_FALLBACK):
             with open(AMPEL_JSON_FALLBACK, "r", encoding="utf-8") as f:
-                existing = json.load(f)
-        existing[str(beleg_id)] = status
+                try:
+                    content = json.load(f)
+                    if isinstance(content, list):
+                        history_records = content
+                    elif isinstance(content, dict):
+                        # Migration des alten Formats (Dict) in eine Liste von Einträgen
+                        for b_id, stat in content.items():
+                            history_records.append({
+                                "buchhaltungsbeleg": str(b_id),
+                                "ampel_status": stat,
+                                "geaendert_am": pd.Timestamp.now().isoformat(),
+                                "geaendert_von": "System (Migration)"
+                            })
+                except Exception:
+                    pass
+
+        # Neuen Eintrag hinzufügen
+        import datetime
+        now_str = datetime.datetime.now().isoformat()
+        history_records.append({
+            "buchhaltungsbeleg": str(beleg_id),
+            "ampel_status": status,
+            "geaendert_von": user,
+            "geaendert_am": now_str
+        })
+
         os.makedirs(os.path.dirname(AMPEL_JSON_FALLBACK), exist_ok=True)
         with open(AMPEL_JSON_FALLBACK, "w", encoding="utf-8") as f:
-            json.dump(existing, f, ensure_ascii=False, indent=2)
+            json.dump(history_records, f, ensure_ascii=False, indent=2)
         return True
     except Exception:
         return False
+
+
+def lade_ampel_status_historie() -> pd.DataFrame:
+    """
+    Laedt die vollstaendige Historie aller Ampel-Status-Aenderungen.
+    Gibt einen DataFrame mit den Spalten ['buchhaltungsbeleg', 'ampel_status', 'geaendert_am', 'geaendert_von'] zurueck.
+    """
+    if os.name == "nt":
+        conn = _get_db_conn()
+        if conn:
+            try:
+                _ensure_ampel_table(conn)
+                df = pd.read_sql("SELECT buchhaltungsbeleg, ampel_status, geaendert_am, geaendert_von FROM beleg_ampel_status_history ORDER BY geaendert_am DESC", conn)
+                conn.close()
+                return df
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+    # Fallback: JSON
+    if os.path.exists(AMPEL_JSON_FALLBACK):
+        try:
+            with open(AMPEL_JSON_FALLBACK, "r", encoding="utf-8") as f:
+                content = json.load(f)
+                if isinstance(content, list):
+                    df = pd.DataFrame(content)
+                    if not df.empty:
+                        # Sicherstellen, dass alle erwarteten Spalten vorhanden sind
+                        for col in ["buchhaltungsbeleg", "ampel_status", "geaendert_am", "geaendert_von"]:
+                            if col not in df.columns:
+                                df[col] = None
+                        # Typen konvertieren
+                        df["geaendert_am"] = pd.to_datetime(df["geaendert_am"])
+                        return df.sort_values(by="geaendert_am", ascending=False)
+                elif isinstance(content, dict):
+                    # Altes Format in DataFrame
+                    records = []
+                    for b_id, stat in content.items():
+                        records.append({
+                            "buchhaltungsbeleg": str(b_id),
+                            "ampel_status": stat,
+                            "geaendert_am": pd.Timestamp.now(),
+                            "geaendert_von": "System (Migration)"
+                        })
+                    return pd.DataFrame(records)
+        except Exception:
+            pass
+    return pd.DataFrame(columns=["buchhaltungsbeleg", "ampel_status", "geaendert_am", "geaendert_von"])
 
 
 def _lade_aus_mariadb():
