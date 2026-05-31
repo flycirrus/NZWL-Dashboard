@@ -23,6 +23,21 @@ st.markdown("""
     }
     /* Hide default Streamlit page navigation */
     [data-testid="stSidebarNav"] {display: none !important;}
+
+    /* Smooth fade-in animation for main content */
+    @keyframes pageFadeIn {
+        from {
+            opacity: 0.3;
+            transform: translateY(6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .main .block-container {
+        animation: pageFadeIn 0.3s ease-out;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -155,4 +170,7 @@ else:
     # Load selected page
     page_path = pages[selection]
     with open(page_path, "r", encoding="utf-8") as f:
-        exec(compile(f.read(), page_path, "exec"), {"__file__": page_path})
+        code_content = f.read()
+        
+    with st.spinner(f"Lade Ansicht '{selection}'..."):
+        exec(compile(code_content, page_path, "exec"), {"__file__": page_path})
