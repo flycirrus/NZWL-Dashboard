@@ -116,6 +116,7 @@ else:
         "Dashboard":        str(_pages_dir / "dashboard.py"),
         "Faelligkeiten":    str(_pages_dir / "faelligkeiten.py"),
         "Kreditor-Debitor": str(_pages_dir / "offene_posten.py"),
+        "Nicht verknüpft":   str(_pages_dir / "nicht_verknuepft.py"),
         "Zahlungsplanung":  str(_pages_dir / "zahlungsplanung.py"),
         "Liquiditaet":      str(_pages_dir / "liquiditaet.py"),
         "Berichte":         str(_pages_dir / "berichte.py"),

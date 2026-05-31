@@ -40,7 +40,8 @@ st.markdown("""
 <style>
 .tbl-header { font-size: 0.78rem; font-weight: 700; color: #888;
               text-transform: uppercase; letter-spacing: 0.05em;
-              padding-bottom: 0.3rem; }
+              padding-bottom: 0.3rem;
+              padding-left: 0.4rem; }
 .tbl-sep    { border-top: 1px solid #e0e0e0; margin: 0.15rem 0 0.25rem 0; }
 
 /* Zeilen-Zellen: vertikal zentriert, einzeilig = gleiche Höhe für alle Streifen */
@@ -71,17 +72,20 @@ div[data-testid="stHorizontalBlock"]
     justify-content: center !important;
 }
 
-/* Voller Zeilen-Hintergrund (auch hinter den Ampel-Buttons) */
-.row-strip-even {
-    background: rgba(31, 78, 121, 0.06);
-    height: 3rem;
-    margin-bottom: -3rem;
+/* Nativer Zeilen-Hintergrund für gerade Tabellenzeilen (Zebra-Muster reaktiviert) */
+div[data-testid="element-container"]:nth-child(even) div[data-testid="stHorizontalBlock"]:has(.tbl-cell) {
+    background: rgba(31, 78, 121, 0.05) !important;
     border-radius: 4px;
 }
 
-/* Ampel-Buttons: gemeinsame Basis */
-div[data-testid="stButton"] button[kind="secondary"],
-div[data-testid="stButton"] button[kind="primary"] {
+/* Hover-Effekt für alle Datenzeilen */
+div[data-testid="stHorizontalBlock"]:has(.tbl-cell):hover {
+    background: rgba(31, 78, 121, 0.09) !important;
+    transition: background 0.15s ease !important;
+}
+
+/* Ampel-Buttons: nur im ersten Column-Container der Datenzeilen stylen */
+div[data-testid="stHorizontalBlock"]:has(.tbl-cell) > div[data-testid="stColumn"]:first-child div[data-testid="stButton"] button {
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -92,16 +96,49 @@ div[data-testid="stButton"] button[kind="primary"] {
     transition: filter 0.15s ease, opacity 0.15s ease !important;
 }
 /* Inaktiv → echtes Grau (kein Farbstich) */
-div[data-testid="stButton"] button[kind="secondary"] {
+div[data-testid="stHorizontalBlock"]:has(.tbl-cell) > div[data-testid="stColumn"]:first-child div[data-testid="stButton"] button[kind="secondary"] {
     filter: grayscale(100%) opacity(0.35) !important;
 }
-div[data-testid="stButton"] button[kind="secondary"]:hover {
+div[data-testid="stHorizontalBlock"]:has(.tbl-cell) > div[data-testid="stColumn"]:first-child div[data-testid="stButton"] button[kind="secondary"]:hover {
     filter: grayscale(80%) opacity(0.65) !important;
 }
 /* Aktiv → volle Farbe + leuchten */
-div[data-testid="stButton"] button[kind="primary"] {
+div[data-testid="stHorizontalBlock"]:has(.tbl-cell) > div[data-testid="stColumn"]:first-child div[data-testid="stButton"] button[kind="primary"] {
     filter: none !important;
     opacity: 1 !important;
+}
+
+/* Sortier-Buttons in der Tabellen-Header-Zeile: exakt wie Text-Header stylen und linksbündig ausrichten */
+div[data-testid="stHorizontalBlock"]:has(.tbl-header) div[data-testid="stButton"] button {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    color: #888 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding: 0.2rem 0.4rem !important;
+    min-height: unset !important;
+    height: auto !important;
+    line-height: 1.4 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    width: 100% !important;
+}
+
+/* Flex-Inhalt des Buttons ebenfalls linksbündig zwingen */
+div[data-testid="stHorizontalBlock"]:has(.tbl-header) div[data-testid="stButton"] button * {
+    text-align: left !important;
+    justify-content: flex-start !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(.tbl-header) div[data-testid="stButton"] button:hover {
+    color: #1F4E79 !important;
+    background: rgba(31, 78, 121, 0.08) !important;
+    border-radius: 4px !important;
 }
 
 /* Ampel-Spalte: Buttons vertikal zentrieren */
@@ -274,7 +311,7 @@ st.markdown("---")
 
 # ── Filter ────────────────────────────────────────────────────────────────────
 zeitraum_filter = st.session_state.get("zeitraum_filter", "Alle")
-f2, f3, f4 = st.columns(3)
+f1, f2, f3, f4 = st.columns(4)
 
 kw_optionen = sorted(belege["kw_label"].unique(), key=lambda x: (int(x.split("/")[1]), int(x.split()[1])))
 
@@ -290,17 +327,37 @@ else:
     else:
         kw_default_idx = 0  # "Alle"
 
-kw_filter = f2.selectbox(
+kw_filter = f1.selectbox(
     "Kalenderwoche",
     ["Alle"] + kw_optionen,
     index=kw_default_idx,
 )
 _kred_liste = ["Alle"] + sorted(belege["kreditor_name"].dropna().unique().tolist())
-kreditor_filter = f3.selectbox("Kreditor", _kred_liste)
-verknuepfung_filter = f4.selectbox(
+kreditor_filter = f2.selectbox("Kreditor", _kred_liste)
+verknuepfung_filter = f3.selectbox(
     "Verknüpfung",
     ["Alle", "Verknüpft (mit Debitor)", "Nicht verknüpft"],
 )
+
+# Optionen für Endkunde / Grund dynamisch laden
+all_customers = set()
+for val in belege[belege["verknuepft"] == True]["debitor_name"].dropna():
+    for name in str(val).split(","):
+        name = name.strip()
+        if name and name not in ("nan", "NaT", ""):
+            all_customers.add(name)
+sorted_customers = sorted(all_customers)
+
+all_reasons = sorted(belege[belege["verknuepft"] == False]["grund"].dropna().unique())
+
+if verknuepfung_filter == "Verknüpft (mit Debitor)":
+    eg_options = ["Alle"] + sorted_customers
+elif verknuepfung_filter == "Nicht verknüpft":
+    eg_options = ["Alle"] + all_reasons
+else:
+    eg_options = ["Alle"] + sorted_customers + all_reasons
+
+endkunde_grund_filter = f4.selectbox("Endkunde / Grund", eg_options)
 
 # Filter anwenden
 belege_filtered = belege.copy()
@@ -314,6 +371,14 @@ if verknuepfung_filter == "Verknüpft (mit Debitor)":
     belege_filtered = belege_filtered[belege_filtered["verknuepft"] == True]
 elif verknuepfung_filter == "Nicht verknüpft":
     belege_filtered = belege_filtered[belege_filtered["verknuepft"] == False]
+
+if endkunde_grund_filter != "Alle":
+    def _matches_filter(row):
+        if row["verknuepft"]:
+            return endkunde_grund_filter in str(row["debitor_name"])
+        else:
+            return endkunde_grund_filter in str(row["grund"])
+    belege_filtered = belege_filtered[belege_filtered.apply(_matches_filter, axis=1)]
 
 # ── Sortierung anwenden ──────────────────────────────────────────────────────
 # Sortierbare Spalten: name im DF → Anzeigename
@@ -335,7 +400,7 @@ total       = len(belege_filtered)
 total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
 
 # Seite zurücksetzen bei Filterwechsel
-filter_key = f"{zeitraum_filter}|{kw_filter}|{verknuepfung_filter}"
+filter_key = f"{zeitraum_filter}|{kw_filter}|{verknuepfung_filter}|{endkunde_grund_filter}"
 if st.session_state.get("faellig_last_filter") != filter_key:
     st.session_state["faellig_page"]        = 0
     st.session_state["faellig_last_filter"] = filter_key
@@ -386,10 +451,43 @@ if total_pages > 1:
         st.session_state["faellig_page"] = cur_page + 1
         st.rerun()
 
+# ── Sammel-Aktion (Bulk Status Update) ────────────────────────────────────────
+with st.expander("⚡ Sammel-Aktionen (Status für alle gefilterten Belege ändern)", expanded=False):
+    col_bulk_lbl, col_bulk_btns = st.columns([2, 3])
+    with col_bulk_lbl:
+        st.markdown("<p style='margin-top:0.4rem;font-weight:bold;font-size:0.95rem;'>Aktion wählen:</p>", unsafe_allow_html=True)
+    with col_bulk_btns:
+        b_col1, b_col2, b_col3, b_col4 = st.columns(4)
+        if b_col1.button("🔴 Alle Stop", key="bulk_rot", use_container_width=True):
+            for _, r in belege_filtered.iterrows():
+                speichere_ampel_status(str(r["buchhaltungsbeleg"]), "rot")
+            st.toast(f"Status für {len(belege_filtered)} Belege auf ROT gesetzt!", icon="💾")
+            st.rerun()
+        if b_col2.button("🟡 Alle in Prüfung", key="bulk_gelb", use_container_width=True):
+            for _, r in belege_filtered.iterrows():
+                speichere_ampel_status(str(r["buchhaltungsbeleg"]), "gelb")
+            st.toast(f"Status für {len(belege_filtered)} Belege auf GELB gesetzt!", icon="💾")
+            st.rerun()
+        if b_col3.button("🟢 Alle Freigeben", key="bulk_gruen", use_container_width=True):
+            for _, r in belege_filtered.iterrows():
+                speichere_ampel_status(str(r["buchhaltungsbeleg"]), "gruen")
+            st.toast(f"Status für {len(belege_filtered)} Belege auf GRÜN gesetzt!", icon="💾")
+            st.rerun()
+        if b_col4.button("⚪ Alle Zurücksetzen", key="bulk_reset", use_container_width=True):
+            for _, r in belege_filtered.iterrows():
+                speichere_ampel_status(str(r["buchhaltungsbeleg"]), "keine")
+            st.toast(f"Status für {len(belege_filtered)} Belege zurückgesetzt!", icon="💾")
+            st.rerun()
+
+st.markdown('<div class="tbl-sep" style="margin-top:0.3rem; margin-bottom:0.7rem;"></div>', unsafe_allow_html=True)
+
+# Wrap table inside a container for perfect alternating colors in CSS
+table_container = st.container()
+
 # ── Tabellenkopf mit Sort-Buttons ────────────────────────────────────────────
 # Spalten: [Ampel | Fällig am | Beleg | Kreditor | Betrag | Endkunden]
 COL_W = [3, 2, 2, 4, 2, 5]
-hdr   = st.columns(COL_W)
+hdr   = table_container.columns(COL_W)
 
 # Ampel + Beleg: nicht sortierbar → statische Beschriftung
 hdr[0].markdown('<div class="tbl-header">Ampel</div>', unsafe_allow_html=True)
@@ -451,24 +549,21 @@ page_rows  = belege_filtered.iloc[page_start : page_start + PAGE_SIZE]
 
 def _cell(col, text):
     """Zelle mit Ellipsis bei langem Text + Tooltip zum Lesen."""
-    plain = str(text).replace('<code>', '').replace('</code>', '')
+    import re
+    # HTML-Tags komplett entfernen für ein valides title-Attribut
+    plain = re.sub(r'<[^>]*>', '', str(text))
+    # Anführungszeichen maskieren, damit das Attribut nicht unterbrochen wird
+    plain = plain.replace('"', '&quot;')
     col.markdown(
         f'<div class="tbl-cell" title="{plain}">{text}</div>',
         unsafe_allow_html=True,
     )
 
 for zeilen_idx, (_, row) in enumerate(page_rows.iterrows()):
-    gerade      = (zeilen_idx % 2 == 0)
     beleg_id    = str(row["buchhaltungsbeleg"])
     current_status = ampel_status.get(beleg_id, "keine")
 
-    # ── Voller Zeilen-Hintergrund (deckt auch die Ampel-Spalte ab) ────────────
-    # Der Strip ist 3rem hoch und wird mit margin-bottom:-3rem "hinter" die
-    # nachfolgende st.columns()-Zeile geschoben, sodass alle Spalten darauf liegen.
-    if gerade:
-        st.markdown('<div class="row-strip-even"></div>', unsafe_allow_html=True)
-
-    row_cols = st.columns(COL_W)
+    row_cols = table_container.columns(COL_W)
 
     # Ampel: 3 Buttons eng nebeneinander
     with row_cols[0]:
@@ -508,21 +603,64 @@ for zeilen_idx, (_, row) in enumerate(page_rows.iterrows()):
 
 st.markdown('<div class="tbl-sep" style="margin-top:0.5rem;"></div>', unsafe_allow_html=True)
 
-# ── Aufschlüsselung pro Kreditor ──────────────────────────────────────────────
+# ── Aufschlüsselung & Kreuz-Aufschlüsselung ──────────────────────────────────
 st.markdown("---")
-st.subheader("Aufschlüsselung pro Kreditor")
-kred_summe = (
-    belege_filtered.groupby("kreditor_name")
-    .agg(
-        Betrag =("offener_betrag",   "sum"),
-        Belege =("buchhaltungsbeleg","count"),
-    )
-    .sort_values("Betrag", ascending=False)
-    .reset_index()
-    .rename(columns={"kreditor_name": "Kreditor"})
-)
-kred_summe["Betrag"] = kred_summe["Betrag"].apply(fmt_eur)
-st.dataframe(kred_summe, use_container_width=True, hide_index=True)
+st.subheader("Auswertungen")
+
+tab_kred, tab_kreuz = st.tabs(["Aufschlüsselung pro Kreditor", "Kreuz-Aufschlüsselung: Kreditor × Endkunde/Grund"])
+
+with tab_kred:
+    if not belege_filtered.empty:
+        kred_summe = (
+            belege_filtered.groupby("kreditor_name")
+            .agg(
+                Betrag =("offener_betrag",   "sum"),
+                Belege =("buchhaltungsbeleg","count"),
+            )
+            .sort_values("Betrag", ascending=False)
+            .reset_index()
+            .rename(columns={"kreditor_name": "Kreditor"})
+        )
+        kred_summe["Betrag"] = kred_summe["Betrag"].apply(fmt_eur)
+        st.dataframe(kred_summe, use_container_width=True, hide_index=True)
+    else:
+        st.info("Keine Daten verfügbar.")
+
+with tab_kreuz:
+    if not belege_filtered.empty:
+        def get_endkunde_grund(row):
+            if row.get("verknuepft", True):
+                val = str(row.get("debitor_name", ""))
+                return val if val not in ("", "nan") else "Unbekannt"
+            else:
+                val = str(row.get("grund", ""))
+                return val if val not in ("", "nan") else "Unbekannt"
+
+        belege_filtered_pivot = belege_filtered.copy()
+        belege_filtered_pivot["endkunde_grund"] = belege_filtered_pivot.apply(get_endkunde_grund, axis=1)
+
+        try:
+            pivot_df = belege_filtered_pivot.pivot_table(
+                index="kreditor_name",
+                columns="endkunde_grund",
+                values="offener_betrag",
+                aggfunc="sum",
+                fill_value=0.0
+            )
+            
+            # Gesamtspalte und Gesamtzeile hinzufügen
+            pivot_df["Gesamt"] = pivot_df.sum(axis=1)
+            pivot_df.loc["Gesamt"] = pivot_df.sum(axis=0)
+
+            # Formatieren der Beträge
+            pivot_fmt = pivot_df.map(fmt_eur)
+            pivot_fmt = pivot_fmt.reset_index().rename(columns={"kreditor_name": "Kreditor"})
+            
+            st.dataframe(pivot_fmt, use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.error(f"Fehler bei der Tabellen-Generierung: {e}")
+    else:
+        st.info("Keine Daten verfügbar.")
 
 # ── Download ──────────────────────────────────────────────────────────────────
 st.markdown("---")
