@@ -4,7 +4,12 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from dashboard.auth import check_permission, MOCK_USERS
-from core.data_import import lade_ampel_status_historie
+from core.data_import import (
+    lade_ampel_status_historie,
+    lade_ampel_status,
+    speichere_ampel_status,
+    berechne_ampel_status_zu_zeitpunkt
+)
 
 if not check_permission(["admin"]):
     st.error("Zugriff verweigert. Nur Administratoren dürfen diese Seite sehen.")
@@ -120,3 +125,75 @@ with tab_history:
             file_name="ampel_status_historie.csv",
             mime="text/csv",
         )
+
+        # ── System-Wiederherstellung (Ampel-Rollback) ──────────────────────────────────
+        st.markdown("---")
+        with st.expander("🔄 System-Wiederherstellung (Ampel-Rollback)", expanded=False):
+            st.markdown("""
+            Hier können Sie den Zustand aller Ampeln im System auf einen beliebigen historischen Zeitpunkt zurücksetzen.
+            Dies fügt neue Historien-Einträge hinzu, um die Nachvollziehbarkeit im Audit-Trail vollständig zu wahren.
+            """)
+            
+            # Datetime pickers
+            from datetime import datetime, date, time
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                target_date = st.date_input("Historisches Datum wählen", value=date.today())
+            with col_d2:
+                target_time = st.time_input("Historische Uhrzeit wählen", value=time(12, 0))
+                
+            target_dt = datetime.combine(target_date, target_time)
+            
+            # Zustand berechnen
+            current_status = lade_ampel_status()
+            historical_status = berechne_ampel_status_zu_zeitpunkt(target_dt)
+            
+            # Änderungen ermitteln
+            changes = []
+            all_beleg_ids = set(current_status.keys()).union(historical_status.keys())
+            for b_id in all_beleg_ids:
+                curr = current_status.get(b_id, "keine")
+                hist = historical_status.get(b_id, "keine")
+                if curr != hist:
+                    changes.append({
+                        "Belegnummer": b_id,
+                        "Aktueller Status": curr,
+                        "Ziel-Status": hist
+                    })
+                    
+            if not changes:
+                st.info(f"Der Zustand der Ampeln am **{target_dt.strftime('%d.%m.%Y %H:%M:%S')}** entspricht dem aktuellen Zustand. Keine Änderungen erforderlich.")
+            else:
+                st.warning(f"**Achtung:** Es wurden **{len(changes)}** Belege identifiziert, deren Ampel-Status sich vom Zustand am **{target_dt.strftime('%d.%m.%Y %H:%M:%S')}** unterscheidet.")
+                
+                # Preview Table
+                preview_df = pd.DataFrame(changes)
+                preview_display = preview_df.copy()
+                status_emoji_map = {
+                    "rot": "🔴 Stop / Prüfen",
+                    "gelb": "🟡 In Prüfung",
+                    "gruen": "🟢 Freigegeben",
+                    "keine": "⚪ Keine / Zurückgesetzt"
+                }
+                preview_display["Aktueller Status"] = preview_display["Aktueller Status"].map(lambda x: status_emoji_map.get(x, x))
+                preview_display["Ziel-Status"] = preview_display["Ziel-Status"].map(lambda x: status_emoji_map.get(x, x))
+                
+                st.dataframe(preview_display, use_container_width=True)
+                
+                confirm_rollback = st.checkbox("Ja, ich möchte alle oben gelisteten Belege auf den historischen Zustand zurücksetzen.", key="confirm_rollback_chk")
+                
+                # Rollback executing button
+                if st.button("Rollback ausführen 🔄", disabled=not confirm_rollback, type="primary"):
+                    success_count = 0
+                    admin_name = st.session_state.user.get("name", "Admin") if st.session_state.user else "Admin"
+                    rollback_user = f"{admin_name} (Rollback auf {target_dt.strftime('%d.%m.%Y %H:%M')})"
+                    
+                    for c in changes:
+                        beleg = c["Belegnummer"]
+                        target_val = c["Ziel-Status"]
+                        if speichere_ampel_status(beleg, target_val, user=rollback_user):
+                            success_count += 1
+                            
+                    st.success(f"Erfolgreich {success_count} Belege auf den Zustand vom {target_dt.strftime('%d.%m.%Y %H:%M:%S')} zurückgesetzt!")
+                    st.toast("System-Zustand erfolgreich wiederhergestellt!", icon="💾")
+                    st.rerun()

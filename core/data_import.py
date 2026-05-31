@@ -282,6 +282,31 @@ def lade_ampel_status_historie() -> pd.DataFrame:
     return pd.DataFrame(columns=["buchhaltungsbeleg", "ampel_status", "geaendert_am", "geaendert_von"])
 
 
+def berechne_ampel_status_zu_zeitpunkt(target_dt) -> dict:
+    """
+    Berechnet den Ampel-Status aller Belege zu einem historischen Zeitpunkt.
+    Gibt ein dict {buchhaltungsbeleg: status} zurueck.
+    """
+    # 1. Gesamte Historie laden
+    df = lade_ampel_status_historie()
+    if df.empty:
+        return {}
+        
+    # 2. Nur Eintraege filtern, die vor oder am target_dt geaendert wurden
+    target_dt = pd.to_datetime(target_dt)
+    df_filtered = df[df["geaendert_am"] <= target_dt]
+    
+    if df_filtered.empty:
+        return {}
+        
+    # 3. Den jeweils neuesten Eintrag pro Beleg ermitteln
+    # Da df bereits nach geaendert_am absteigend sortiert ist, 
+    # koennen wir einfach das erste Vorkommen pro Beleg nehmen (drop_duplicates)
+    latest_at_dt = df_filtered.drop_duplicates(subset=["buchhaltungsbeleg"], keep="first")
+    
+    return dict(zip(latest_at_dt["buchhaltungsbeleg"].astype(str), latest_at_dt["ampel_status"]))
+
+
 def _lade_aus_mariadb():
     import pymysql
     conn = None
