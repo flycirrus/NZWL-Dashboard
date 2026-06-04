@@ -70,8 +70,12 @@ _grund_col = "grund" if "grund" in nv_raw.columns else None
 _branche_col = "branche" if "branche" in nv_raw.columns else None
 _betrag_col = "offener_betrag" if "offener_betrag" in nv_raw.columns else None
 
-ist_werkzeug = nv_raw[_branche_col].astype(str).str.strip() == "Werkzeuge" if _branche_col else pd.Series(False, index=nv_raw.index)
-ist_gutschrift = nv_raw[_grund_col] == "Gutschrift" if _grund_col else pd.Series(False, index=nv_raw.index)
+ist_werkzeug   = nv_raw[_branche_col].astype(str).str.strip() == "Werkzeuge" if _branche_col else pd.Series(False, index=nv_raw.index)
+# Gutschriften: erkannt durch 'grund' == 'Gutschrift' ODER durch negativen Betrag
+# (Fallback fuer MariaDB wo Minuszeichen verloren gehen koennen oder 'grund' fehlt)
+_gut_by_grund  = nv_raw[_grund_col].astype(str).str.strip().str.lower() == "gutschrift" if _grund_col else pd.Series(False, index=nv_raw.index)
+_gut_by_betrag = nv_raw[_betrag_col] < 0 if _betrag_col else pd.Series(False, index=nv_raw.index)
+ist_gutschrift = _gut_by_grund | _gut_by_betrag
 
 _wz = nv_raw[ist_werkzeug]
 _gs = nv_raw[ist_gutschrift & ~ist_werkzeug]

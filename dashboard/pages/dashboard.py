@@ -215,13 +215,22 @@ _betrag_verknuepft = (
     if not detail.empty and "buchhaltungsbeleg" in detail.columns and "offener_betrag" in detail.columns
     else 0.0
 )
-if not nv_raw.empty and "grund" in nv_raw.columns:
-    _gs = nv_raw[nv_raw["grund"] == "Gutschrift"]
-    _nv_ohne_gs = nv_raw[nv_raw["grund"] != "Gutschrift"]
+if not nv_raw.empty:
+    # Dual-Erkennung: grund == 'Gutschrift' ODER offener_betrag < 0
+    # (Fallback fuer MariaDB wo Minuszeichen oder 'grund'-Spalte fehlen koennen)
+    _gut_by_grund  = (nv_raw["grund"].astype(str).str.strip().str.lower() == "gutschrift"
+                      if "grund" in nv_raw.columns
+                      else pd.Series(False, index=nv_raw.index))
+    _gut_by_betrag = (nv_raw["offener_betrag"] < 0
+                      if "offener_betrag" in nv_raw.columns
+                      else pd.Series(False, index=nv_raw.index))
+    _ist_gutschrift = _gut_by_grund | _gut_by_betrag
+    _gs         = nv_raw[_ist_gutschrift]
+    _nv_ohne_gs = nv_raw[~_ist_gutschrift]
 else:
     _gs = pd.DataFrame()
     _nv_ohne_gs = nv_raw
-
+_anzahl_gutschriften = len(_gs)
 _betrag_nicht_verknuepft = (
     _nv_ohne_gs["offener_betrag"].sum()
     if not _nv_ohne_gs.empty and "offener_betrag" in _nv_ohne_gs.columns
@@ -232,7 +241,6 @@ _betrag_gutschriften = (
     if not _gs.empty and "offener_betrag" in _gs.columns
     else 0.0
 )
-_anzahl_gutschriften = len(_gs)
 
 _caption_lines = (
     f"🟢 Verknüpft: **{fmt_mio(_betrag_verknuepft)}**  \n"

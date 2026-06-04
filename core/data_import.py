@@ -340,6 +340,41 @@ def _lade_aus_mariadb():
             daten[key] = pd.DataFrame()
 
     conn.close()
+
+    # ── Nachbearbeitung: opos_nicht_verknuepft ────────────────────────────────
+    # Problem: MariaDB speichert offener_betrag ggf. als DECIMAL UNSIGNED
+    # (Minuszeichen geht verloren) und die Spalte 'grund' fehlt evtl. ganz.
+    # Loesung: Gutschriften werden doppelt erkannt:
+    #   1) durch grund == 'Gutschrift' (falls vorhanden)
+    #   2) durch negativen offener_betrag ODER belegart (falls offener_betrag < 0)
+    nv = daten.get("nicht_verknuepft", pd.DataFrame())
+    if not nv.empty:
+        # (a) Betrag als signed erzwingen (falls DECIMAL UNSIGNED gespeichert)
+        if "offener_betrag" in nv.columns:
+            nv["offener_betrag"] = pd.to_numeric(nv["offener_betrag"], errors="coerce").fillna(0.0)
+
+        # (b) 'grund'-Spalte anlegen falls nicht vorhanden
+        if "grund" not in nv.columns:
+            nv["grund"] = ""
+
+        # (c) Leere Grundwerte fuer negative Betraege als 'Gutschrift' setzen
+        #     (greift wenn MariaDB den Betrag korrekt negativ speichert)
+        neg_mask = nv["offener_betrag"] < 0
+        gut_mask = nv["grund"].astype(str).str.strip().str.lower() == "gutschrift"
+        leer_mask = nv["grund"].astype(str).str.strip().isin(["", "nan", "none"])
+        nv.loc[neg_mask & leer_mask, "grund"] = "Gutschrift"
+
+        # (d) Wenn kein Beleg als Gutschrift erkannt (0 Gutschriften nach Betrag+Grund),
+        #     pruefen ob eine alternative Belegart-Spalte vorhanden ist (z.B. belegart)
+        if (gut_mask | neg_mask).sum() == 0:
+            for mogl_col in ["belegart", "dokumenttyp", "beleg_art", "doctype"]:
+                if mogl_col in nv.columns:
+                    gut_belegart = nv[mogl_col].astype(str).str.upper().isin(["KG", "KR", "RK", "G"])
+                    nv.loc[gut_belegart & leer_mask, "grund"] = "Gutschrift"
+                    break
+
+        daten["nicht_verknuepft"] = nv
+
     return daten
 
 
