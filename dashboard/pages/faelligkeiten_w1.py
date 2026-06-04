@@ -1,5 +1,5 @@
 """
-Fälligkeiten – Variante 1 (W1)
+Fälligkeiten – Version 02
 Gleiche Funktionalität wie faelligkeiten.py, Design passend zu Dashboard W1.
 """
 import streamlit as st
@@ -370,7 +370,7 @@ total_betrag = belege["offener_betrag"].sum()
 st.markdown(f"""
 <div class="page-hero">
   <div>
-    <h1>📅 Fälligkeiten – Variante 1</h1>
+    <h1>📅 Fälligkeiten – Version 02</h1>
     <p>Was muss wann bezahlt werden? · NZWL Leipzig &amp; ZWL Slovakia</p>
   </div>
   <div style="display:flex;gap:0.8rem;align-items:center;">

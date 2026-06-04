@@ -279,7 +279,7 @@ if not detail.empty and "aktualisiert_am" in detail.columns:
 st.markdown(f"""
 <div class="page-hero">
   <div>
-    <h1>📊 Dashboard – Variante 1</h1>
+    <h1>📊 Dashboard – Version 02</h1>
     <p>Kreditor-Debitor Liquiditätssteuerung · NZWL Leipzig &amp; ZWL Slovakia</p>
   </div>
   <div class="ts-badge">
