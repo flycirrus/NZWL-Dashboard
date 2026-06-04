@@ -535,13 +535,24 @@ if not detail.empty:
         import altair as alt
 
         # Basis-Datensatz je nach Filter
-        if not df_faellig_week.empty and selected_woche != "Alle":
-            belege_im_zeitraum = set(
-                df_faellig_week_unique[df_faellig_week_unique["woche"] == selected_woche]["buchhaltungsbeleg"]
-            )
-            chart_base = detail[detail["buchhaltungsbeleg"].isin(belege_im_zeitraum)].copy()
+        # WICHTIG: df_faellig_week_unique enthält bereits detail + nv_raw
+        # (nicht verknüpfte Belege sind schon integriert).
+        # Wir verwenden DIESEN Datensatz damit Top-10-Summe mit der Kachel übereinstimmt.
+        if not df_faellig_week_unique.empty and selected_woche != "Alle":
+            chart_base = df_faellig_week_unique[df_faellig_week_unique["woche"] == selected_woche].copy()
+        elif not df_faellig_week_unique.empty:
+            chart_base = df_faellig_week_unique.copy()
         else:
             chart_base = detail.copy()
+
+        # Fallback: kreditor_name aus kreditor ableiten wenn leer
+        if "kreditor_name" in chart_base.columns:
+            chart_base["kreditor_name"] = chart_base["kreditor_name"].fillna(
+                chart_base.get("kreditor", "").astype(str)
+            )
+            chart_base["kreditor_name"] = chart_base["kreditor_name"].replace("", "Unbekannt")
+        if "kreditor" not in chart_base.columns:
+            chart_base["kreditor"] = chart_base.get("kreditor_name", "Unbekannt")
 
         grp_cols = [c for c in ["kreditor", "kreditor_name"] if c in chart_base.columns]
 
@@ -625,6 +636,18 @@ if not detail.empty:
                 ).encode(text="betrag_fmt:N")
 
                 st.altair_chart((bars + text).configure_view(strokeWidth=0), use_container_width=True)
+
+                # Abgleich-Hinweis: Summe der Top-10 vs. Gesamtsumme des Zeitraums
+                _total_zeitraum  = chart_base["offener_betrag"].sum() if "offener_betrag" in chart_base.columns else 0
+                _total_top10     = top10["offener_betrag_summe"].sum()
+                _differenz       = _total_zeitraum - _total_top10
+                _abdeckung_pct   = (_total_top10 / _total_zeitraum * 100) if _total_zeitraum else 0
+                if _differenz > 1:  # nur anzeigen wenn echte Differenz
+                    st.caption(
+                        f"Gesamt {selected_woche}: **{fmt_mio(_total_zeitraum)}** · "
+                        f"Top-10 abgebildet: **{fmt_mio(_total_top10)}** ({_abdeckung_pct:.0f}%) · "
+                        f"restliche Kreditoren: *{fmt_mio(_differenz)}*"
+                    )
             else:
                 st.info("Keine Daten für diesen Zeitraum.")
 
