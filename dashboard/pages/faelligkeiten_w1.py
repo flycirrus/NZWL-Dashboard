@@ -399,15 +399,21 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# Ampel-Zählung folgt dem aktiven Zeitraum-Filter
+_zf_w1 = st.session_state.get("zeitraum_filter_w1", "Alle")
+_belege_ampel_w1 = belege if _zf_w1 == "Alle" else belege[belege["zeitraum"] == _zf_w1]
+
 ampel_def = [
     ("rot",   "🔴", "Stop / Prüfen",  "rot"),
     ("gelb",  "🟡", "In Prüfung",     "gelb"),
     ("gruen", "🟢", "Freigegeben",    "gruen"),
     ("keine", "⚪", "Kein Status",    "keine"),
 ]
+if _zf_w1 != "Alle":
+    st.caption(f"🔍 Ampel-Status für Zeitraum: **{_zf_w1}**")
 amp_cols = st.columns(4)
 for col_i, (status_key, emoji, label, css_cls) in enumerate(ampel_def):
-    sub = belege[belege["ampel"] == status_key]
+    sub = _belege_ampel_w1[_belege_ampel_w1["ampel"] == status_key]
     betrag_str = fmt_mio(sub["offener_betrag"].sum()) if len(sub) > 0 else "—"
     amp_cols[col_i].markdown(f"""
     <div class="ampel-card {css_cls}">

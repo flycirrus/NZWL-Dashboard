@@ -189,6 +189,12 @@ ampel_status_alle = lade_ampel_status()
 belege["ampel"] = belege["buchhaltungsbeleg"].astype(str).map(
     lambda b: ampel_status_alle.get(b, "keine")
 )
+# Ampel-Zählung folgt dem aktiven Zeitraum-Filter (nicht immer Gesamt)
+_zf = st.session_state.get("zeitraum_filter", "Alle")
+_belege_ampel = belege if _zf == "Alle" else belege[belege["zeitraum"] == _zf]
+if _zf != "Alle":
+    st.caption(f"🔍 Ampel-Status für Zeitraum: **{_zf}**")
+
 ampel_def = [
     ("rot",   "🔴", "Stop / Prüfen"),
     ("gelb",  "🟡", "In Prüfung"),
@@ -197,7 +203,7 @@ ampel_def = [
 ]
 amp_cols = st.columns(4)
 for col_i, (status_key, emoji, label) in enumerate(ampel_def):
-    sub = belege[belege["ampel"] == status_key]
+    sub = _belege_ampel[_belege_ampel["ampel"] == status_key]
     amp_cols[col_i].metric(
         label=f"{emoji} {label}",
         value=f"{len(sub)} Belege",
