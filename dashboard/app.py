@@ -108,16 +108,22 @@ st.markdown("""
         box-shadow: none !important;
         transition: background 0.12s ease, color 0.12s ease !important;
         margin: 0.01rem 0.35rem !important;
+        display: flex !important;
         justify-content: flex-start !important;
+        align-items: center !important;
         line-height: 1.3 !important;
         min-height: unset !important;
         height: auto !important;
     }
-    /* Buttontext linksbündig erzwingen */
+    /* Buttontext linksbündig — alle Kinder-Elemente */
+    [data-testid="stSidebar"] div[data-testid="stButton"] button *,
     [data-testid="stSidebar"] div[data-testid="stButton"] button p,
-    [data-testid="stSidebar"] div[data-testid="stButton"] button div {
+    [data-testid="stSidebar"] div[data-testid="stButton"] button div,
+    [data-testid="stSidebar"] div[data-testid="stButton"] button span {
         text-align: left !important;
+        display: block !important;
         width: 100% !important;
+        margin: 0 !important;
     }
     [data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
         background: rgba(255,255,255,0.08) !important;
@@ -131,6 +137,24 @@ st.markdown("""
         border-left: 2px solid rgba(255,255,255,0.65) !important;
         border-radius: 0 5px 5px 0 !important;
         padding-left: calc(0.9rem - 2px) !important;
+    }
+
+    /* Legacy / (alt)-Items: kleiner und blasser */
+    /* CSS-Sibling-Trick: .nav-legacy-marker direkt vor dem (alt)-Button */
+    .nav-legacy-marker + div[data-testid="stButton"] button {
+        font-size: 0.70rem !important;
+        color: rgba(255,255,255,0.38) !important;
+        padding: 0.15rem 0.9rem 0.15rem 1.2rem !important;
+        font-style: italic !important;
+    }
+    .nav-legacy-marker + div[data-testid="stButton"] button:hover {
+        color: rgba(255,255,255,0.60) !important;
+    }
+    .nav-legacy-marker + div[data-testid="stButton"] button[kind="primary"] {
+        color: rgba(255,255,255,0.85) !important;
+        font-style: normal !important;
+        font-weight: 600 !important;
+        border-left: 2px solid rgba(255,255,255,0.45) !important;
     }
 
     /* Selectbox in Sidebar */
@@ -398,15 +422,15 @@ else:
     # Navigation configuration (absolute paths)
     _pages_dir = Path(__file__).parent / "pages"
     pages = {
-        "Dashboard V01 (alt)":      str(_pages_dir / "dashboard.py"),
         "Dashboard V02":            str(_pages_dir / "dashboard_w1.py"),
-        "Faelligkeiten V01 (alt)":  str(_pages_dir / "faelligkeiten.py"),
+        "Dashboard V01 (alt)":      str(_pages_dir / "dashboard.py"),
         "Faelligkeiten V02":        str(_pages_dir / "faelligkeiten_w1.py"),
+        "Faelligkeiten V01 (alt)":  str(_pages_dir / "faelligkeiten.py"),
         "Kreditor-Debitor":         str(_pages_dir / "offene_posten.py"),
-        "Nicht verknüpft":   str(_pages_dir / "nicht_verknuepft.py"),
-        "Zahlungsplanung":  str(_pages_dir / "zahlungsplanung.py"),
-        "Liquiditaet":      str(_pages_dir / "liquiditaet.py"),
-        "Berichte":         str(_pages_dir / "berichte.py"),
+        "Nicht verknüpft":          str(_pages_dir / "nicht_verknuepft.py"),
+        "Zahlungsplanung":           str(_pages_dir / "zahlungsplanung.py"),
+        "Liquiditaet":               str(_pages_dir / "liquiditaet.py"),
+        "Berichte":                  str(_pages_dir / "berichte.py"),
     }
     
     if st.session_state.role == "admin":
@@ -446,12 +470,12 @@ else:
 
         # ── Navigation ───────────────────────────────────────────────────────
         NAV_GROUPS = {
-            "Dashboard V01 (alt)":     "Analyse",
             "Dashboard V02":           "Analyse",
-            "Faelligkeiten V01 (alt)": "Fälligkeiten",
+            "Dashboard V01 (alt)":     "Analyse",
             "Faelligkeiten V02":       "Fälligkeiten",
+            "Faelligkeiten V01 (alt)": "Fälligkeiten",
             "Kreditor-Debitor":        "Offene Posten",
-            "Nicht verküpft":         "Offene Posten",
+            "Nicht verknüpft":         "Offene Posten",
             "Zahlungsplanung":         "Planung",
             "Liquiditaet":             "Planung",
             "Berichte":                "Berichte",
@@ -466,8 +490,13 @@ else:
                             unsafe_allow_html=True)
                 last_group = grp
 
+            is_alt    = "(alt)" in page_name
             is_active = st.session_state["nav_selection"] == page_name
             btn_type  = "primary" if is_active else "secondary"
+
+            # Legacy-Marker direkt vor (alt)-Buttons setzen (CSS-Sibling-Trick)
+            if is_alt:
+                st.markdown('<div class="nav-legacy-marker"></div>', unsafe_allow_html=True)
 
             if st.button(
                 page_name,
