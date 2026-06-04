@@ -78,6 +78,7 @@ st.markdown("""
     background: var(--nzwl-card);
     transition: all 0.18s ease;
     cursor: pointer;
+    margin-bottom: 0.45rem;
 }
 .woche-card:hover { border-color: var(--nzwl-blue-mid); box-shadow: 0 3px 10px rgba(31,78,121,0.12); }
 .woche-card.active {
