@@ -24,6 +24,139 @@ st.markdown("""
     /* Hide default Streamlit page navigation */
     [data-testid="stSidebarNav"] {display: none !important;}
 
+    /* ── Sidebar: modernes Design ── */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1a3a5c 0%, #1F4E79 60%, #1a3a5c 100%) !important;
+    }
+    [data-testid="stSidebar"] * {
+        color: rgba(255,255,255,0.9) !important;
+    }
+
+    /* Sidebar-Titel */
+    .sidebar-brand {
+        padding: 0.6rem 0.8rem 0.4rem;
+        border-bottom: 1px solid rgba(255,255,255,0.12);
+        margin-bottom: 0.8rem;
+    }
+    .sidebar-brand-title {
+        font-size: 1.1rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        color: white !important;
+    }
+    .sidebar-brand-sub {
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.55) !important;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    /* Benutzer-Chip */
+    .sidebar-user {
+        background: rgba(255,255,255,0.08);
+        border-radius: 10px;
+        padding: 0.55rem 0.8rem;
+        margin: 0 0.4rem 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    .sidebar-avatar {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.18);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.85rem; font-weight: 700;
+        color: white !important;
+        flex-shrink: 0;
+    }
+    .sidebar-user-name {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: white !important;
+        line-height: 1.2;
+    }
+    .sidebar-user-role {
+        font-size: 0.68rem;
+        color: rgba(255,255,255,0.55) !important;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    /* Gruppen-Label */
+    .nav-group-label {
+        font-size: 0.63rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: rgba(255,255,255,0.4) !important;
+        padding: 0.6rem 1.0rem 0.2rem;
+    }
+
+    /* Nav-Buttons */
+    [data-testid="stSidebar"] div[data-testid="stButton"] button {
+        width: 100% !important;
+        text-align: left !important;
+        background: transparent !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0.48rem 0.85rem !important;
+        font-size: 0.87rem !important;
+        font-weight: 500 !important;
+        color: rgba(255,255,255,0.78) !important;
+        box-shadow: none !important;
+        transition: background 0.15s ease, color 0.15s ease !important;
+        margin: 0.05rem 0.3rem !important;
+        justify-content: flex-start !important;
+        line-height: 1.4 !important;
+        min-height: unset !important;
+        height: auto !important;
+    }
+    [data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
+        background: rgba(255,255,255,0.10) !important;
+        color: white !important;
+    }
+    /* Aktiver Nav-Button */
+    [data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] {
+        background: rgba(255,255,255,0.15) !important;
+        color: white !important;
+        font-weight: 700 !important;
+        border-left: 3px solid rgba(255,255,255,0.7) !important;
+        border-radius: 0 8px 8px 0 !important;
+        padding-left: calc(0.85rem - 3px) !important;
+    }
+
+    /* Selectbox in Sidebar */
+    [data-testid="stSidebar"] [data-testid="stSelectbox"] label {
+        color: rgba(255,255,255,0.55) !important;
+        font-size: 0.72rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.07em !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stSelectbox"] div[data-baseweb="select"] {
+        background: rgba(255,255,255,0.08) !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        border-radius: 8px !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stSelectbox"] div[data-baseweb="select"] * {
+        color: white !important;
+    }
+
+    /* Footer-Buttons (Cache / Logout) */
+    .sidebar-footer {
+        border-top: 1px solid rgba(255,255,255,0.12);
+        padding-top: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    [data-testid="stSidebar"] .sidebar-footer div[data-testid="stButton"] button {
+        color: rgba(255,255,255,0.55) !important;
+        font-size: 0.82rem !important;
+    }
+    [data-testid="stSidebar"] .sidebar-footer div[data-testid="stButton"] button:hover {
+        color: white !important;
+        background: rgba(255,255,255,0.08) !important;
+    }
+
     /* Smooth fade-in animation for main content */
     @keyframes pageFadeIn {
         from {
@@ -257,32 +390,97 @@ else:
     if st.session_state.role == "admin":
         pages["Admin-Bereich"] = str(_pages_dir / "admin.py")
 
-    # Global Sidebar Elements
+    # ── Sidebar initialisieren ────────────────────────────────────────────────
+    if "nav_selection" not in st.session_state:
+        st.session_state["nav_selection"] = list(pages.keys())[0]
+    # Sicherstellen, dass die Selektion noch gültig ist
+    if st.session_state["nav_selection"] not in pages:
+        st.session_state["nav_selection"] = list(pages.keys())[0]
+
     with st.sidebar:
-        st.title("NZWL Dashboard")
-        st.write(f"Angemeldet als: **{st.session_state.user['name']}**")
-        st.write(f"Rolle: *{st.session_state.role}*")
-        
-        # Determine accessible companies based on user settings
+        # ── Brand-Header ──────────────────────────────────────────────────────
+        _user     = st.session_state.user
+        _initials = "".join(w[0].upper() for w in _user["name"].split()[:2])
+        st.markdown(f"""
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-title">💶 NZWL Dashboard</div>
+            <div class="sidebar-brand-sub">Zahlungsplanung &amp; Liquidität</div>
+        </div>
+        <div class="sidebar-user">
+            <div class="sidebar-avatar">{_initials}</div>
+            <div>
+                <div class="sidebar-user-name">{_user['name']}</div>
+                <div class="sidebar-user-role">{st.session_state.role}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # ── Gesellschaft-Selector ─────────────────────────────────────────────
         ges_opts = ["Beide", "NZWL", "ZWL_SK"]
-        user_ges = st.session_state.user["gesellschaft"]
-        if user_ges == "nzwl":
-            ges_opts = ["NZWL"]
-        elif user_ges == "zwl_sk":
-            ges_opts = ["ZWL_SK"]
-            
+        user_ges = _user["gesellschaft"]
+        if user_ges == "nzwl":   ges_opts = ["NZWL"]
+        elif user_ges == "zwl_sk": ges_opts = ["ZWL_SK"]
         st.selectbox("Gesellschaft", ges_opts, key="selected_gesellschaft")
-        
-        st.markdown("---")
-        selection = st.radio("Navigation", list(pages.keys()))
-        
-        st.markdown("---")
-        if st.button("🗑️ Cache leeren"):
+
+        # ── Navigation ───────────────────────────────────────────────────────
+        # Icons + Gruppen
+        NAV_ICONS = {
+            "Dashboard V01 (alt)":     "📊",
+            "Dashboard V02":           "✨",
+            "Faelligkeiten V01 (alt)": "📅",
+            "Faelligkeiten V02":       "✨",
+            "Kreditor-Debitor":        "🔗",
+            "Nicht verknüpft":         "⚠️",
+            "Zahlungsplanung":         "💳",
+            "Liquiditaet":             "💧",
+            "Berichte":                "📑",
+            "Admin-Bereich":           "⚙️",
+        }
+        NAV_GROUPS = {
+            "Dashboard V01 (alt)":     "Analyse",
+            "Dashboard V02":           "Analyse",
+            "Faelligkeiten V01 (alt)": "Fälligkeiten",
+            "Faelligkeiten V02":       "Fälligkeiten",
+            "Kreditor-Debitor":        "Offene Posten",
+            "Nicht verknüpft":         "Offene Posten",
+            "Zahlungsplanung":         "Planung",
+            "Liquiditaet":             "Planung",
+            "Berichte":                "Berichte",
+            "Admin-Bereich":           "System",
+        }
+
+        last_group = None
+        for page_name in pages.keys():
+            grp = NAV_GROUPS.get(page_name, "")
+            if grp != last_group:
+                st.markdown(f'<div class="nav-group-label">{grp}</div>',
+                            unsafe_allow_html=True)
+                last_group = grp
+
+            icon      = NAV_ICONS.get(page_name, "▸")
+            is_active = st.session_state["nav_selection"] == page_name
+            btn_type  = "primary" if is_active else "secondary"
+
+            if st.button(
+                f"{icon}  {page_name}",
+                key=f"nav_{page_name}",
+                type=btn_type,
+                use_container_width=True,
+            ):
+                st.session_state["nav_selection"] = page_name
+                st.rerun()
+
+        # ── Footer-Buttons ────────────────────────────────────────────────────
+        st.markdown('<div class="sidebar-footer">', unsafe_allow_html=True)
+        if st.button("🗑️  Cache leeren", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
-        if st.button("Logout"):
+        if st.button("🚪  Logout", use_container_width=True):
             logout()
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    selection = st.session_state["nav_selection"]
 
     # Load selected page
     page_path = pages[selection]
