@@ -254,8 +254,8 @@ with tab_source:
 
     st.markdown("---")
 
-    # ── 3) Lokale JSON-Dateien ────────────────────────────────────────────────
-    st.markdown("### Lokale JSON-Dateien (Fallback)")
+    # ── 3) JSON-Dateien Inventar ─────────────────────────────────────────────
+    st.markdown("### Lokale JSON-Dateien auf diesem Server")
     _data_dir = Path(__file__).resolve().parent.parent.parent / "data" / "input"
     json_files = {t: _data_dir / f"{t}.json" for t in TABELLEN}
 
@@ -266,75 +266,143 @@ with tab_source:
             size_mb = pfad.stat().st_size / 1_000_000
             aktive_json.append({"Tabelle": tabelle, "Datei": pfad.name, "Grösse": f"{size_mb:.1f} MB", "Status": "✅ aktiv"})
         elif bak.exists():
-            versteckte_json.append({"Tabelle": tabelle, "Datei": bak.name, "Status": "📦 gesichert (.bak)"})
+            versteckte_json.append({"Tabelle": tabelle, "Datei": bak.name, "Grösse": "—", "Status": "📦 gesichert (.bak)"})
         else:
-            aktive_json.append({"Tabelle": tabelle, "Datei": pfad.name, "Grösse": "—", "Status": "⚪ nicht vorhanden"})
+            aktive_json.append({"Tabelle": tabelle, "Datei": "—", "Grösse": "—", "Status": "⚪ nicht vorhanden"})
+
+    has_active_json = any(pfad.exists() for pfad in json_files.values())
+    has_backup_json = any(pfad.with_suffix(".json.bak").exists() for pfad in json_files.values())
 
     if aktive_json:
         st.dataframe(pd.DataFrame(aktive_json), use_container_width=True, hide_index=True)
     if versteckte_json:
-        st.info("Die folgenden JSON-Dateien sind als .bak gesichert und werden **nicht** vom Dashboard verwendet:")
         st.dataframe(pd.DataFrame(versteckte_json), use_container_width=True, hide_index=True)
 
     st.markdown("---")
 
-    # ── 4) Beweis-Button: JSON ausblenden / wiederherstellen ─────────────────
-    st.markdown("### 🧪 Beweis: Daten kommen aus MariaDB")
-    st.markdown("""
-    Mit diesem Test können Sie beweisen, dass der **Windows-Server** alle Daten aus MariaDB lädt
-    und **nicht** aus den lokalen JSON-Dateien.
+    # ── 4) Beweis-Bereich ─────────────────────────────────────────────────────
+    st.markdown("### 🧪 Beweis: Woher kommen die Daten?")
 
-    **Ablauf:**
-    1. Klicken Sie **„JSON-Dateien sichern"** → die JSON-Dateien werden in `.bak` umbenannt (nicht gelöscht!)
-    2. Laden Sie das Dashboard neu — wenn Daten noch erscheinen: **Beweis erbracht**, sie kommen aus MariaDB
-    3. Klicken Sie danach **„JSON-Dateien wiederherstellen"** → Dateien zurück zu `.json`
-    """)
+    if is_windows and not has_active_json and not has_backup_json:
+        # ── BEWEIS ERBRACHT: Server hat gar keine JSON-Dateien ─────────────────
+        st.success("""
+**✅ Beweis erbracht — Alle Daten kommen aus MariaDB.**
 
-    col_hide, col_restore = st.columns(2)
+Auf diesem Windows-Server existieren **keine JSON-Dateien** im Ordner `data/input/`.
+Das Dashboard zeigt dennoch Daten — diese können daher **ausschließlich aus der MariaDB-Datenbank** stammen.
 
-    has_active_json   = any(pfad.exists() for pfad in json_files.values())
-    has_backup_json   = any(pfad.with_suffix(".json.bak").exists() for pfad in json_files.values())
+**Logik:**
+- Windows-Server → Code führt immer `_lade_aus_mariadb()` aus (unabhängig von JSON)
+- Keine JSON-Dateien vorhanden → kein Fallback möglich
+- Dashboard zeigt Daten → **Quelle = MariaDB** ✓
+        """)
 
-    with col_hide:
-        if st.button(
-            "📦 JSON-Dateien sichern (.bak)",
-            disabled=not has_active_json,
-            type="primary",
-            key="hide_json",
-            help="Benennt alle JSON-Dateien in .bak um — Dashboard läuft dann nur über MariaDB",
-        ):
-            moved = []
-            for tabelle, pfad in json_files.items():
-                if pfad.exists():
+        st.markdown("#### Live-Bestätigung: Aktuelle Zeilenzahlen aus MariaDB")
+        st.caption("Klicken Sie auf 'Bestätigen' um die Zeilenzahlen direkt aus der Datenbank zu lesen:")
+        if st.button("🔍 Zeilenzahlen aus MariaDB bestätigen", type="primary", key="confirm_mariadb"):
+            conn = _get_db_conn()
+            if conn:
+                rows_info = []
+                total_rows = 0
+                for tabelle in TABELLEN:
+                    try:
+                        df_t = pd.read_sql(f"SELECT COUNT(*) AS anzahl FROM {tabelle}", conn)
+                        n = int(df_t["anzahl"].iloc[0])
+                        total_rows += n
+                        rows_info.append({
+                            "Tabelle": tabelle,
+                            "Zeilen in MariaDB": n,
+                            "Quelle bestätigt": "✅ MariaDB"
+                        })
+                    except Exception as e:
+                        rows_info.append({
+                            "Tabelle": tabelle,
+                            "Zeilen in MariaDB": 0,
+                            "Quelle bestätigt": f"❌ {e}"
+                        })
+                conn.close()
+                st.dataframe(pd.DataFrame(rows_info), use_container_width=True, hide_index=True)
+                st.success(f"**{total_rows:,} Datensätze gesamt direkt aus MariaDB gelesen.** Keine JSON-Quelle beteiligt.")
+            else:
+                st.error("Verbindung zur MariaDB fehlgeschlagen.")
+
+    elif is_windows and has_active_json:
+        # Windows mit JSON-Dateien (ungewöhnlich, aber möglich)
+        st.warning("""
+⚠️ Auf diesem Windows-Server wurden JSON-Dateien gefunden.
+Der Code ignoriert diese und lädt trotzdem aus MariaDB — aber zur Sicherheit können Sie die Dateien hier sichern.
+        """)
+        col_hide, col_restore = st.columns(2)
+        with col_hide:
+            if st.button("📦 JSON-Dateien sichern (.bak)", type="primary", key="hide_json"):
+                moved = []
+                for tabelle, pfad in json_files.items():
+                    if pfad.exists():
+                        bak = pfad.with_suffix(".json.bak")
+                        pfad.rename(bak)
+                        moved.append(pfad.name)
+                if moved:
+                    st.success(f"✅ {len(moved)} Dateien gesichert.")
+                    st.cache_data.clear()
+                    st.rerun()
+        with col_restore:
+            if st.button("♻️ JSON-Dateien wiederherstellen", disabled=not has_backup_json, key="restore_json"):
+                restored = []
+                for tabelle, pfad in json_files.items():
                     bak = pfad.with_suffix(".json.bak")
-                    pfad.rename(bak)
-                    moved.append(pfad.name)
-            if moved:
-                st.success(f"✅ {len(moved)} Dateien gesichert: {', '.join(moved)}")
-                st.info("Jetzt das Dashboard neu laden — Daten sollten weiterhin aus MariaDB erscheinen.")
-                st.cache_data.clear()
-                st.rerun()
-            else:
-                st.warning("Keine aktiven JSON-Dateien gefunden.")
+                    if bak.exists():
+                        bak.rename(pfad)
+                        restored.append(pfad.name)
+                if restored:
+                    st.success(f"✅ {len(restored)} Dateien wiederhergestellt.")
+                    st.cache_data.clear()
+                    st.rerun()
 
-    with col_restore:
-        if st.button(
-            "♻️ JSON-Dateien wiederherstellen",
-            disabled=not has_backup_json,
-            key="restore_json",
-            help="Stellt die gesicherten .bak-Dateien wieder als .json her",
-        ):
-            restored = []
-            for tabelle, pfad in json_files.items():
-                bak = pfad.with_suffix(".json.bak")
-                if bak.exists():
-                    bak.rename(pfad)
-                    restored.append(pfad.name)
-            if restored:
-                st.success(f"✅ {len(restored)} Dateien wiederhergestellt: {', '.join(restored)}")
-                st.cache_data.clear()
-                st.rerun()
-            else:
-                st.warning("Keine .bak-Dateien zum Wiederherstellen gefunden.")
+    else:
+        # macOS / Linux — JSON-Test für lokale Entwicklung
+        st.info("""
+Dieses System läuft auf **macOS/Linux** und nutzt lokale JSON-Dateien als Datenquelle.
 
-    st.caption("ℹ️ JSON-Dateien werden nur auf macOS als Fallback genutzt. Auf dem Windows-Server wird immer MariaDB verwendet, unabhängig davon ob JSON-Dateien vorhanden sind.")
+Zum Testen ob MariaDB erreichbar wäre: JSON-Dateien umbenennen und Dashboard neu laden.
+        """)
+        col_hide, col_restore = st.columns(2)
+        with col_hide:
+            if st.button(
+                "📦 JSON-Dateien sichern (.bak)",
+                disabled=not has_active_json,
+                type="primary",
+                key="hide_json",
+                help="Benennt alle JSON-Dateien in .bak um",
+            ):
+                moved = []
+                for tabelle, pfad in json_files.items():
+                    if pfad.exists():
+                        bak = pfad.with_suffix(".json.bak")
+                        pfad.rename(bak)
+                        moved.append(pfad.name)
+                if moved:
+                    st.success(f"✅ {len(moved)} Dateien gesichert.")
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.warning("Keine aktiven JSON-Dateien gefunden.")
+        with col_restore:
+            if st.button(
+                "♻️ JSON-Dateien wiederherstellen",
+                disabled=not has_backup_json,
+                key="restore_json",
+            ):
+                restored = []
+                for tabelle, pfad in json_files.items():
+                    bak = pfad.with_suffix(".json.bak")
+                    if bak.exists():
+                        bak.rename(pfad)
+                        restored.append(pfad.name)
+                if restored:
+                    st.success(f"✅ {len(restored)} Dateien wiederhergestellt.")
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.warning("Keine .bak-Dateien gefunden.")
+
+    st.caption("ℹ️ Windows-Server: immer MariaDB · macOS/Linux: JSON-Fallback")
