@@ -9,6 +9,64 @@ from core.data_import import lade_ergebnis_daten
 
 st.title("Dashboard")
 
+# ── Version-Banner: V01 (veraltete Ansicht) ───────────────────────────────────
+st.markdown("""
+<div style="
+    border: 2px solid #9CA3AF;
+    border-left: 6px solid #6B7280;
+    border-radius: 10px;
+    background: repeating-linear-gradient(
+        -45deg,
+        #F9FAFB, #F9FAFB 12px,
+        #F3F4F6 12px, #F3F4F6 24px
+    );
+    padding: 0;
+    margin-bottom: 1.2rem;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+">
+    <div style="
+        background: #6B7280;
+        color: white;
+        text-align: center;
+        font-weight: 800;
+        font-size: 0.72rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        padding: 4px 0;
+    ">🗂️ &nbsp; VERSION 01 — VERALTETE ANSICHT &nbsp; 🗂️</div>
+    <div style="
+        background: rgba(255,255,255,0.85);
+        padding: 0.75rem 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    ">
+        <span style="font-size:1.4rem;">📦</span>
+        <div>
+            <span style="font-size:0.98rem;font-weight:700;color:#374151;display:block;">
+                Dies ist <u>Dashboard Version 01</u> — die ursprüngliche Ansicht.
+            </span>
+            <span style="font-size:0.85rem;color:#6B7280;">
+                Eine überarbeitete Version ist verfügbar: &nbsp;
+                <strong style="color:#1F4E79;">→ Dashboard V02</strong> in der linken Navigation.
+            </span>
+        </div>
+    </div>
+    <div style="
+        background: #9CA3AF;
+        color: white;
+        text-align: center;
+        font-weight: 700;
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 3px 0;
+    ">Diese Seite bleibt zum Vergleich erhalten · Not for productive use</div>
+</div>
+""", unsafe_allow_html=True)
+# ─────────────────────────────────────────────────────────────────────────────
+
 # ── Kernlogik ausfuehren + Daten aktualisieren ───────────────────────────────
 import os
 import subprocess
@@ -151,21 +209,40 @@ col4.metric(
     label="Match-Quote",
     value=stat.get("Gesamte Match-Quote", "?"),
 )
-# Beträge: verknüpft vs. nicht verknüpft
+# Beträge: verknüpft vs. nicht verknüpft vs. Gutschriften
 _betrag_verknuepft = (
     detail.drop_duplicates(subset=["buchhaltungsbeleg"])["offener_betrag"].sum()
     if not detail.empty and "buchhaltungsbeleg" in detail.columns and "offener_betrag" in detail.columns
     else 0.0
 )
+if not nv_raw.empty and "grund" in nv_raw.columns:
+    _gs = nv_raw[nv_raw["grund"] == "Gutschrift"]
+    _nv_ohne_gs = nv_raw[nv_raw["grund"] != "Gutschrift"]
+else:
+    _gs = pd.DataFrame()
+    _nv_ohne_gs = nv_raw
+
 _betrag_nicht_verknuepft = (
-    nv_raw["offener_betrag"].sum()
-    if not nv_raw.empty and "offener_betrag" in nv_raw.columns
+    _nv_ohne_gs["offener_betrag"].sum()
+    if not _nv_ohne_gs.empty and "offener_betrag" in _nv_ohne_gs.columns
     else 0.0
 )
-col4.caption(
+_betrag_gutschriften = (
+    _gs["offener_betrag"].sum()
+    if not _gs.empty and "offener_betrag" in _gs.columns
+    else 0.0
+)
+_anzahl_gutschriften = len(_gs)
+
+_caption_lines = (
     f"🟢 Verknüpft: **{fmt_mio(_betrag_verknuepft)}**  \n"
     f"🔴 Nicht verknüpft: **{fmt_mio(_betrag_nicht_verknuepft)}**"
 )
+if _anzahl_gutschriften > 0:
+    _caption_lines += (
+        f"  \n↩️ Gutschriften: **{_anzahl_gutschriften} Belege, {fmt_mio(abs(_betrag_gutschriften))}**"
+    )
+col4.caption(_caption_lines)
 
 st.markdown("---")
 

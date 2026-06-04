@@ -40,6 +40,64 @@ PAGE_SIZE = 20
 # ── Titel & Daten laden ───────────────────────────────────────────────────────
 st.title("Fälligkeiten — Was muss wann bezahlt werden?")
 
+# ── Version-Banner: V01 (veraltete Ansicht) ───────────────────────────────────
+st.markdown("""
+<div style="
+    border: 2px solid #9CA3AF;
+    border-left: 6px solid #6B7280;
+    border-radius: 10px;
+    background: repeating-linear-gradient(
+        -45deg,
+        #F9FAFB, #F9FAFB 12px,
+        #F3F4F6 12px, #F3F4F6 24px
+    );
+    padding: 0;
+    margin-bottom: 1.2rem;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+">
+    <div style="
+        background: #6B7280;
+        color: white;
+        text-align: center;
+        font-weight: 800;
+        font-size: 0.72rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        padding: 4px 0;
+    ">🗂️ &nbsp; VERSION 01 — VERALTETE ANSICHT &nbsp; 🗂️</div>
+    <div style="
+        background: rgba(255,255,255,0.85);
+        padding: 0.75rem 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    ">
+        <span style="font-size:1.4rem;">📦</span>
+        <div>
+            <span style="font-size:0.98rem;font-weight:700;color:#374151;display:block;">
+                Dies ist <u>Fälligkeiten Version 01</u> — die ursprüngliche Ansicht.
+            </span>
+            <span style="font-size:0.85rem;color:#6B7280;">
+                Eine überarbeitete Version ist verfügbar: &nbsp;
+                <strong style="color:#1F4E79;">→ Faelligkeiten V02</strong> in der linken Navigation.
+            </span>
+        </div>
+    </div>
+    <div style="
+        background: #9CA3AF;
+        color: white;
+        text-align: center;
+        font-weight: 700;
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 3px 0;
+    ">Diese Seite bleibt zum Vergleich erhalten · Not for productive use</div>
+</div>
+""", unsafe_allow_html=True)
+# ─────────────────────────────────────────────────────────────────────────────
+
 daten        = lade_ergebnis_daten()
 detail       = daten["detail"]
 nv_raw       = daten.get("nicht_verknuepft", pd.DataFrame())

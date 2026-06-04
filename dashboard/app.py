@@ -243,11 +243,11 @@ else:
     # Navigation configuration (absolute paths)
     _pages_dir = Path(__file__).parent / "pages"
     pages = {
-        "Dashboard":        str(_pages_dir / "dashboard.py"),
-        "Dashboard W1":     str(_pages_dir / "dashboard_w1.py"),
-        "Faelligkeiten":    str(_pages_dir / "faelligkeiten.py"),
-        "Faelligkeiten W1": str(_pages_dir / "faelligkeiten_w1.py"),
-        "Kreditor-Debitor": str(_pages_dir / "offene_posten.py"),
+        "Dashboard V01 (alt)":      str(_pages_dir / "dashboard.py"),
+        "Dashboard V02":            str(_pages_dir / "dashboard_w1.py"),
+        "Faelligkeiten V01 (alt)":  str(_pages_dir / "faelligkeiten.py"),
+        "Faelligkeiten V02":        str(_pages_dir / "faelligkeiten_w1.py"),
+        "Kreditor-Debitor":         str(_pages_dir / "offene_posten.py"),
         "Nicht verknüpft":   str(_pages_dir / "nicht_verknuepft.py"),
         "Zahlungsplanung":  str(_pages_dir / "zahlungsplanung.py"),
         "Liquiditaet":      str(_pages_dir / "liquiditaet.py"),
