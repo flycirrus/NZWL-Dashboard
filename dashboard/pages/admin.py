@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
@@ -8,7 +9,11 @@ from core.data_import import (
     lade_ampel_status_historie,
     lade_ampel_status,
     speichere_ampel_status,
-    berechne_ampel_status_zu_zeitpunkt
+    berechne_ampel_status_zu_zeitpunkt,
+    MARIADB_CONFIG,
+    MARIADB_USERS,
+    TABELLEN,
+    _get_db_conn,
 )
 
 if not check_permission(["admin"]):
@@ -17,7 +22,11 @@ if not check_permission(["admin"]):
 
 st.title("Admin-Bereich ⚙️")
 
-tab_users, tab_history = st.tabs(["👤 Nutzerverwaltung", "📜 Beleg-Statusverlauf (Ampel-Historie)"])
+tab_users, tab_history, tab_source = st.tabs([
+    "👤 Nutzerverwaltung",
+    "📜 Beleg-Statusverlauf (Ampel-Historie)",
+    "🔌 Datenquelle & Diagnose",
+])
 
 with tab_users:
     st.subheader("Nutzerverwaltung")
@@ -197,3 +206,135 @@ with tab_history:
                     st.success(f"Erfolgreich {success_count} Belege auf den Zustand vom {target_dt.strftime('%d.%m.%Y %H:%M:%S')} zurückgesetzt!")
                     st.toast("System-Zustand erfolgreich wiederhergestellt!", icon="💾")
                     st.rerun()
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TAB 3: Datenquelle & Diagnose
+# ──────────────────────────────────────────────────────────────────────────────
+with tab_source:
+    st.subheader("🔌 Datenquelle & Diagnose")
+
+    # ── 1) Aktive Datenquelle ────────────────────────────────────────────────
+    is_windows = os.name == "nt"
+    if is_windows:
+        st.success("**Datenquelle: MariaDB** — Dieser Server läuft auf Windows (os.name = 'nt').\n\nAlle Analysedaten werden ausschließlich aus der MariaDB-Datenbank geladen.")
+        source_label = "MariaDB"
+        source_color = "#16a34a"
+    else:
+        st.warning("**Datenquelle: Lokale JSON-Dateien** — Dieses System läuft auf macOS/Linux.\n\nAuf dem Windows-Server würde dieselbe Seite direkt aus MariaDB laden.")
+        source_label = "Lokale JSON-Dateien"
+        source_color = "#d97706"
+
+    col_info1, col_info2 = st.columns(2)
+    col_info1.metric("Betriebssystem", "Windows Server" if is_windows else "macOS / Linux")
+    col_info2.metric("Aktive Datenquelle", source_label)
+
+    st.markdown("---")
+
+    # ── 2) MariaDB Verbindungstest ────────────────────────────────────────────
+    st.markdown("### MariaDB Verbindungstest")
+    st.caption(f"Host: `{MARIADB_CONFIG['host']}:{MARIADB_CONFIG['port']}` · Datenbank: `{MARIADB_CONFIG['database']}`")
+
+    if st.button("Verbindung testen", key="test_mariadb_conn"):
+        conn = _get_db_conn()
+        if conn:
+            st.success(f"✅ Verbindung zu MariaDB erfolgreich!")
+            # Tabellen abfragen
+            rows_info = []
+            for tabelle in TABELLEN:
+                try:
+                    df_t = pd.read_sql(f"SELECT COUNT(*) AS anzahl FROM {tabelle}", conn)
+                    rows_info.append({"Tabelle": tabelle, "Anzahl Zeilen": int(df_t["anzahl"].iloc[0]), "Status": "✅ vorhanden"})
+                except Exception as e:
+                    rows_info.append({"Tabelle": tabelle, "Anzahl Zeilen": 0, "Status": f"❌ Fehler: {e}"})
+            conn.close()
+            st.dataframe(pd.DataFrame(rows_info), use_container_width=True, hide_index=True)
+        else:
+            st.error("❌ Verbindung zur MariaDB konnte nicht hergestellt werden.")
+            st.info("Auf dem Windows-Server muss MariaDB erreichbar sein. Lokal (macOS) ist das erwartet.")
+
+    st.markdown("---")
+
+    # ── 3) Lokale JSON-Dateien ────────────────────────────────────────────────
+    st.markdown("### Lokale JSON-Dateien (Fallback)")
+    _data_dir = Path(__file__).resolve().parent.parent.parent / "data" / "input"
+    json_files = {t: _data_dir / f"{t}.json" for t in TABELLEN}
+
+    aktive_json, versteckte_json = [], []
+    for tabelle, pfad in json_files.items():
+        bak = pfad.with_suffix(".json.bak")
+        if pfad.exists():
+            size_mb = pfad.stat().st_size / 1_000_000
+            aktive_json.append({"Tabelle": tabelle, "Datei": pfad.name, "Grösse": f"{size_mb:.1f} MB", "Status": "✅ aktiv"})
+        elif bak.exists():
+            versteckte_json.append({"Tabelle": tabelle, "Datei": bak.name, "Status": "📦 gesichert (.bak)"})
+        else:
+            aktive_json.append({"Tabelle": tabelle, "Datei": pfad.name, "Grösse": "—", "Status": "⚪ nicht vorhanden"})
+
+    if aktive_json:
+        st.dataframe(pd.DataFrame(aktive_json), use_container_width=True, hide_index=True)
+    if versteckte_json:
+        st.info("Die folgenden JSON-Dateien sind als .bak gesichert und werden **nicht** vom Dashboard verwendet:")
+        st.dataframe(pd.DataFrame(versteckte_json), use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+
+    # ── 4) Beweis-Button: JSON ausblenden / wiederherstellen ─────────────────
+    st.markdown("### 🧪 Beweis: Daten kommen aus MariaDB")
+    st.markdown("""
+    Mit diesem Test können Sie beweisen, dass der **Windows-Server** alle Daten aus MariaDB lädt
+    und **nicht** aus den lokalen JSON-Dateien.
+
+    **Ablauf:**
+    1. Klicken Sie **„JSON-Dateien sichern"** → die JSON-Dateien werden in `.bak` umbenannt (nicht gelöscht!)
+    2. Laden Sie das Dashboard neu — wenn Daten noch erscheinen: **Beweis erbracht**, sie kommen aus MariaDB
+    3. Klicken Sie danach **„JSON-Dateien wiederherstellen"** → Dateien zurück zu `.json`
+    """)
+
+    col_hide, col_restore = st.columns(2)
+
+    has_active_json   = any(pfad.exists() for pfad in json_files.values())
+    has_backup_json   = any(pfad.with_suffix(".json.bak").exists() for pfad in json_files.values())
+
+    with col_hide:
+        if st.button(
+            "📦 JSON-Dateien sichern (.bak)",
+            disabled=not has_active_json,
+            type="primary",
+            key="hide_json",
+            help="Benennt alle JSON-Dateien in .bak um — Dashboard läuft dann nur über MariaDB",
+        ):
+            moved = []
+            for tabelle, pfad in json_files.items():
+                if pfad.exists():
+                    bak = pfad.with_suffix(".json.bak")
+                    pfad.rename(bak)
+                    moved.append(pfad.name)
+            if moved:
+                st.success(f"✅ {len(moved)} Dateien gesichert: {', '.join(moved)}")
+                st.info("Jetzt das Dashboard neu laden — Daten sollten weiterhin aus MariaDB erscheinen.")
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.warning("Keine aktiven JSON-Dateien gefunden.")
+
+    with col_restore:
+        if st.button(
+            "♻️ JSON-Dateien wiederherstellen",
+            disabled=not has_backup_json,
+            key="restore_json",
+            help="Stellt die gesicherten .bak-Dateien wieder als .json her",
+        ):
+            restored = []
+            for tabelle, pfad in json_files.items():
+                bak = pfad.with_suffix(".json.bak")
+                if bak.exists():
+                    bak.rename(pfad)
+                    restored.append(pfad.name)
+            if restored:
+                st.success(f"✅ {len(restored)} Dateien wiederhergestellt: {', '.join(restored)}")
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.warning("Keine .bak-Dateien zum Wiederherstellen gefunden.")
+
+    st.caption("ℹ️ JSON-Dateien werden nur auf macOS als Fallback genutzt. Auf dem Windows-Server wird immer MariaDB verwendet, unabhängig davon ob JSON-Dateien vorhanden sind.")
