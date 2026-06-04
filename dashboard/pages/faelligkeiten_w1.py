@@ -105,6 +105,7 @@ st.markdown("""
     border: 1.5px solid var(--nzwl-border);
     background: var(--nzwl-card);
     transition: all 0.18s ease;
+    margin-bottom: 0.45rem;
 }
 .zeit-card:hover { border-color: var(--nzwl-blue-mid); box-shadow: 0 3px 10px rgba(31,78,121,0.1); }
 .zeit-card.active  { background: var(--nzwl-blue); border-color: var(--nzwl-blue); }
@@ -493,8 +494,24 @@ if kpi_cols[-1].button(
 
 zeitraum_filter = st.session_state["zeitraum_filter_w1"]
 if zeitraum_filter != "Alle":
-    st.markdown(f'<div class="filter-badge">🔍 Filter aktiv: {zeitraum_filter}</div>',
-                unsafe_allow_html=True)
+    import datetime as _dt
+    _heute    = _dt.date.today()
+    _kw_heute = _heute.isocalendar()[1]
+    _kw_map   = {
+        "Diese Woche":         _kw_heute,
+        "Nächste Woche":       _kw_heute + 1,
+        "In 2 Wochen":         _kw_heute + 2,
+        "In 3 Wochen":         _kw_heute + 3,
+    }
+    _kw_num  = _kw_map.get(zeitraum_filter)
+    _kw_hint = (
+        f" &nbsp;·&nbsp; <span style='font-size:0.72rem;opacity:0.65'>KW&nbsp;{_kw_num}</span>"
+        if _kw_num else ""
+    )
+    st.markdown(
+        f'<div class="filter-badge">\U0001f50d Filter aktiv: {zeitraum_filter}{_kw_hint}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 # ── Filter-Zeile ──────────────────────────────────────────────────────────────

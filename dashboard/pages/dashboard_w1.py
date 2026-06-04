@@ -499,7 +499,25 @@ if not detail.empty and "nettofaelligkeit" in detail.columns:
     selected_woche = st.session_state["selected_woche_w1"]
 
     if selected_woche != "Alle":
-        st.markdown(f'<div class="filter-badge">🔍 Filter aktiv: {selected_woche}</div>', unsafe_allow_html=True)
+        import datetime as _dt
+        _heute = _dt.date.today()
+        _kw_heute = _heute.isocalendar()[1]
+        _kw_hint = ""
+        if selected_woche == "Überfällig":
+            _kw_hint = ""
+        else:
+            # Wochennummer aus dem Label ableiten (z.B. "KW23", "KW24" ...)
+            # Label kommt aus wochen_order: "Überfällig", "KW23", "KW24" ...
+            import re as _re
+            _m = _re.search(r"KW\s*(\d+)", selected_woche)
+            if _m:
+                _kw_hint = f" &nbsp;·&nbsp; <span style='font-size:0.72rem;opacity:0.7'>KW&nbsp;{_m.group(1)}</span>"
+            elif selected_woche == "Diese Woche":
+                _kw_hint = f" &nbsp;·&nbsp; <span style='font-size:0.72rem;opacity:0.7'>KW&nbsp;{_kw_heute}</span>"
+        st.markdown(
+            f'<div class="filter-badge">\U0001f50d Filter aktiv: {selected_woche}{_kw_hint}</div>',
+            unsafe_allow_html=True,
+        )
 else:
     st.info("ℹ️ Fälligkeitsdaten werden nach dem nächsten Kernlogik-Lauf verfügbar.")
 
