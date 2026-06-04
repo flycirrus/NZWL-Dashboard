@@ -464,6 +464,7 @@ else:
     
     if st.session_state.role == "admin":
         pages["Admin-Bereich"] = str(_pages_dir / "admin.py")
+        pages["Cron-Status"] = str(_pages_dir / "cron_status.py")
 
     # ── Sidebar initialisieren ────────────────────────────────────────────────
     if "nav_selection" not in st.session_state:
@@ -509,6 +510,7 @@ else:
             "Liquiditaet":             "Planung",
             "Berichte":                "Berichte",
             "Admin-Bereich":           "System",
+            "Cron-Status":             "System",
         }
 
         last_group = None
