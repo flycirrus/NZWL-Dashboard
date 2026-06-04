@@ -101,17 +101,17 @@ st.markdown("""
         background: transparent !important;
         border: none !important;
         border-radius: 5px !important;
-        padding: 0.26rem 0.9rem !important;
+        padding: 0.18rem 0.9rem !important;
         font-size: 0.82rem !important;
         font-weight: 400 !important;
         color: rgba(255,255,255,0.68) !important;
         box-shadow: none !important;
         transition: background 0.12s ease, color 0.12s ease !important;
-        margin: 0.01rem 0.35rem !important;
+        margin: 0rem 0.35rem !important;
         display: flex !important;
         justify-content: flex-start !important;
         align-items: center !important;
-        line-height: 1.3 !important;
+        line-height: 1.25 !important;
         min-height: unset !important;
         height: auto !important;
     }
@@ -139,22 +139,51 @@ st.markdown("""
         padding-left: calc(0.9rem - 2px) !important;
     }
 
-    /* Legacy / (alt)-Items: kleiner und blasser */
-    /* CSS-Sibling-Trick: .nav-legacy-marker direkt vor dem (alt)-Button */
-    .nav-legacy-marker + div[data-testid="stButton"] button {
+    /* Gruppen-Label: weniger Abstand */
+    .nav-group-label {
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.05rem !important;
+    }
+
+    /* Expander „Alte Seiten“ — dark Sidebar-Stil */
+    [data-testid="stSidebar"] [data-testid="stExpander"] {
+        background: transparent !important;
+        border: 1px solid rgba(255,255,255,0.10) !important;
+        border-radius: 6px !important;
+        margin: 0.3rem 0.35rem 0.1rem !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary {
+        color: rgba(255,255,255,0.42) !important;
         font-size: 0.70rem !important;
-        color: rgba(255,255,255,0.38) !important;
-        padding: 0.15rem 0.9rem 0.15rem 1.2rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.09em !important;
+        padding: 0.3rem 0.6rem !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {
+        color: rgba(255,255,255,0.70) !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary svg {
+        fill: rgba(255,255,255,0.35) !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stExpander"] > div {
+        padding: 0.1rem 0 0.2rem !important;
+    }
+    /* Buttons INNERHALB des Expanders: etwas kleiner + eingerueckt */
+    [data-testid="stSidebar"] [data-testid="stExpander"] div[data-testid="stButton"] button {
+        font-size: 0.75rem !important;
+        color: rgba(255,255,255,0.50) !important;
+        padding: 0.15rem 0.7rem !important;
         font-style: italic !important;
     }
-    .nav-legacy-marker + div[data-testid="stButton"] button:hover {
-        color: rgba(255,255,255,0.60) !important;
+    [data-testid="stSidebar"] [data-testid="stExpander"] div[data-testid="stButton"] button:hover {
+        color: rgba(255,255,255,0.80) !important;
     }
-    .nav-legacy-marker + div[data-testid="stButton"] button[kind="primary"] {
-        color: rgba(255,255,255,0.85) !important;
+    [data-testid="stSidebar"] [data-testid="stExpander"] div[data-testid="stButton"] button[kind="primary"] {
+        color: white !important;
         font-style: normal !important;
         font-weight: 600 !important;
-        border-left: 2px solid rgba(255,255,255,0.45) !important;
+        border-left: 2px solid rgba(255,255,255,0.40) !important;
     }
 
     /* Selectbox in Sidebar */
@@ -484,19 +513,17 @@ else:
 
         last_group = None
         for page_name in pages.keys():
+            if "(alt)" in page_name:
+                continue  # Alt-Seiten kommen in den Expander weiter unten
+
             grp = NAV_GROUPS.get(page_name, "")
             if grp != last_group:
                 st.markdown(f'<div class="nav-group-label">{grp}</div>',
                             unsafe_allow_html=True)
                 last_group = grp
 
-            is_alt    = "(alt)" in page_name
             is_active = st.session_state["nav_selection"] == page_name
             btn_type  = "primary" if is_active else "secondary"
-
-            # Legacy-Marker direkt vor (alt)-Buttons setzen (CSS-Sibling-Trick)
-            if is_alt:
-                st.markdown('<div class="nav-legacy-marker"></div>', unsafe_allow_html=True)
 
             if st.button(
                 page_name,
@@ -506,6 +533,23 @@ else:
             ):
                 st.session_state["nav_selection"] = page_name
                 st.rerun()
+
+        # ── Alte Seiten (Expander) ───────────────────────────────────────────────────
+        alt_pages = {k: v for k, v in pages.items() if "(alt)" in k}
+        if alt_pages:
+            any_alt_active = st.session_state["nav_selection"] in alt_pages
+            with st.expander("Alte Seiten", expanded=any_alt_active):
+                for page_name in alt_pages.keys():
+                    is_active = st.session_state["nav_selection"] == page_name
+                    btn_type  = "primary" if is_active else "secondary"
+                    if st.button(
+                        page_name,
+                        key=f"nav_{page_name}",
+                        type=btn_type,
+                        use_container_width=True,
+                    ):
+                        st.session_state["nav_selection"] = page_name
+                        st.rerun()
 
         # ── Footer-Buttons ────────────────────────────────────────────────────
         st.markdown('<div class="sidebar-footer">', unsafe_allow_html=True)
