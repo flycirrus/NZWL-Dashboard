@@ -101,17 +101,23 @@ st.markdown("""
         background: transparent !important;
         border: none !important;
         border-radius: 5px !important;
-        padding: 0.28rem 0.9rem !important;
+        padding: 0.26rem 0.9rem !important;
         font-size: 0.82rem !important;
         font-weight: 400 !important;
         color: rgba(255,255,255,0.68) !important;
         box-shadow: none !important;
         transition: background 0.12s ease, color 0.12s ease !important;
-        margin: 0.02rem 0.35rem !important;
+        margin: 0.01rem 0.35rem !important;
         justify-content: flex-start !important;
-        line-height: 1.35 !important;
+        line-height: 1.3 !important;
         min-height: unset !important;
         height: auto !important;
+    }
+    /* Buttontext linksbündig erzwingen */
+    [data-testid="stSidebar"] div[data-testid="stButton"] button p,
+    [data-testid="stSidebar"] div[data-testid="stButton"] button div {
+        text-align: left !important;
+        width: 100% !important;
     }
     [data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
         background: rgba(255,255,255,0.08) !important;
@@ -129,18 +135,32 @@ st.markdown("""
 
     /* Selectbox in Sidebar */
     [data-testid="stSidebar"] [data-testid="stSelectbox"] label {
-        color: rgba(255,255,255,0.55) !important;
-        font-size: 0.72rem !important;
+        color: rgba(255,255,255,0.45) !important;
+        font-size: 0.67rem !important;
         text-transform: uppercase !important;
-        letter-spacing: 0.07em !important;
+        letter-spacing: 0.08em !important;
+        margin-bottom: 0.15rem !important;
     }
-    [data-testid="stSidebar"] [data-testid="stSelectbox"] div[data-baseweb="select"] {
-        background: rgba(255,255,255,0.08) !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
-        border-radius: 8px !important;
+    /* Dropdown-Trigger: dunkler Hintergrund damit weißer Text sichtbar ist */
+    [data-testid="stSidebar"] [data-testid="stSelectbox"] div[data-baseweb="select"] > div:first-child {
+        background: rgba(10,30,60,0.55) !important;
+        border: 1px solid rgba(255,255,255,0.18) !important;
+        border-radius: 6px !important;
     }
     [data-testid="stSidebar"] [data-testid="stSelectbox"] div[data-baseweb="select"] * {
-        color: white !important;
+        color: rgba(255,255,255,0.90) !important;
+        background-color: transparent !important;
+    }
+    /* Dropdown-Menü (geöffnet) */
+    [data-testid="stSidebar"] [data-baseweb="popover"] {
+        background: #1F4E79 !important;
+    }
+    [data-testid="stSidebar"] [data-baseweb="popover"] li {
+        color: rgba(255,255,255,0.85) !important;
+        background: transparent !important;
+    }
+    [data-testid="stSidebar"] [data-baseweb="popover"] li:hover {
+        background: rgba(255,255,255,0.12) !important;
     }
 
     /* Footer-Buttons (Cache / Logout) */
