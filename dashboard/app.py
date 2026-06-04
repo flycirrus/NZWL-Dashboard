@@ -34,63 +34,64 @@ st.markdown("""
 
     /* Sidebar-Titel */
     .sidebar-brand {
-        padding: 0.6rem 0.8rem 0.4rem;
+        padding: 0.5rem 0.9rem 0.35rem;
         border-bottom: 1px solid rgba(255,255,255,0.12);
-        margin-bottom: 0.8rem;
+        margin-bottom: 0.5rem;
     }
     .sidebar-brand-title {
-        font-size: 1.1rem;
+        font-size: 0.98rem;
         font-weight: 800;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.03em;
         color: white !important;
+        text-transform: uppercase;
     }
     .sidebar-brand-sub {
-        font-size: 0.72rem;
-        color: rgba(255,255,255,0.55) !important;
+        font-size: 0.67rem;
+        color: rgba(255,255,255,0.45) !important;
         letter-spacing: 0.05em;
         text-transform: uppercase;
     }
 
     /* Benutzer-Chip */
     .sidebar-user {
-        background: rgba(255,255,255,0.08);
-        border-radius: 10px;
-        padding: 0.55rem 0.8rem;
-        margin: 0 0.4rem 0.8rem;
+        background: rgba(255,255,255,0.07);
+        border-radius: 7px;
+        padding: 0.4rem 0.7rem;
+        margin: 0 0.5rem 0.5rem;
         display: flex;
         align-items: center;
-        gap: 0.6rem;
+        gap: 0.5rem;
     }
     .sidebar-avatar {
-        width: 32px; height: 32px;
+        width: 26px; height: 26px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.16);
         display: flex; align-items: center; justify-content: center;
-        font-size: 0.85rem; font-weight: 700;
+        font-size: 0.72rem; font-weight: 700;
         color: white !important;
         flex-shrink: 0;
     }
     .sidebar-user-name {
-        font-size: 0.82rem;
+        font-size: 0.78rem;
         font-weight: 600;
         color: white !important;
         line-height: 1.2;
     }
     .sidebar-user-role {
-        font-size: 0.68rem;
-        color: rgba(255,255,255,0.55) !important;
+        font-size: 0.63rem;
+        color: rgba(255,255,255,0.48) !important;
         text-transform: uppercase;
         letter-spacing: 0.06em;
     }
 
     /* Gruppen-Label */
     .nav-group-label {
-        font-size: 0.63rem;
+        font-size: 0.59rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: rgba(255,255,255,0.4) !important;
-        padding: 0.6rem 1.0rem 0.2rem;
+        letter-spacing: 0.12em;
+        color: rgba(255,255,255,0.35) !important;
+        padding: 0.45rem 0.9rem 0.1rem;
     }
 
     /* Nav-Buttons */
@@ -99,31 +100,31 @@ st.markdown("""
         text-align: left !important;
         background: transparent !important;
         border: none !important;
-        border-radius: 8px !important;
-        padding: 0.48rem 0.85rem !important;
-        font-size: 0.87rem !important;
-        font-weight: 500 !important;
-        color: rgba(255,255,255,0.78) !important;
+        border-radius: 5px !important;
+        padding: 0.28rem 0.9rem !important;
+        font-size: 0.82rem !important;
+        font-weight: 400 !important;
+        color: rgba(255,255,255,0.68) !important;
         box-shadow: none !important;
-        transition: background 0.15s ease, color 0.15s ease !important;
-        margin: 0.05rem 0.3rem !important;
+        transition: background 0.12s ease, color 0.12s ease !important;
+        margin: 0.02rem 0.35rem !important;
         justify-content: flex-start !important;
-        line-height: 1.4 !important;
+        line-height: 1.35 !important;
         min-height: unset !important;
         height: auto !important;
     }
     [data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
-        background: rgba(255,255,255,0.10) !important;
-        color: white !important;
+        background: rgba(255,255,255,0.08) !important;
+        color: rgba(255,255,255,0.92) !important;
     }
     /* Aktiver Nav-Button */
     [data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] {
-        background: rgba(255,255,255,0.15) !important;
+        background: rgba(255,255,255,0.12) !important;
         color: white !important;
-        font-weight: 700 !important;
-        border-left: 3px solid rgba(255,255,255,0.7) !important;
-        border-radius: 0 8px 8px 0 !important;
-        padding-left: calc(0.85rem - 3px) !important;
+        font-weight: 600 !important;
+        border-left: 2px solid rgba(255,255,255,0.65) !important;
+        border-radius: 0 5px 5px 0 !important;
+        padding-left: calc(0.9rem - 2px) !important;
     }
 
     /* Selectbox in Sidebar */
@@ -144,17 +145,18 @@ st.markdown("""
 
     /* Footer-Buttons (Cache / Logout) */
     .sidebar-footer {
-        border-top: 1px solid rgba(255,255,255,0.12);
-        padding-top: 0.5rem;
-        margin-top: 0.5rem;
+        border-top: 1px solid rgba(255,255,255,0.10);
+        padding-top: 0.35rem;
+        margin-top: 0.35rem;
     }
     [data-testid="stSidebar"] .sidebar-footer div[data-testid="stButton"] button {
-        color: rgba(255,255,255,0.55) !important;
-        font-size: 0.82rem !important;
+        color: rgba(255,255,255,0.42) !important;
+        font-size: 0.75rem !important;
+        padding: 0.22rem 0.9rem !important;
     }
     [data-testid="stSidebar"] .sidebar-footer div[data-testid="stButton"] button:hover {
-        color: white !important;
-        background: rgba(255,255,255,0.08) !important;
+        color: rgba(255,255,255,0.75) !important;
+        background: rgba(255,255,255,0.06) !important;
     }
 
     /* Smooth fade-in animation for main content */
@@ -403,7 +405,7 @@ else:
         _initials = "".join(w[0].upper() for w in _user["name"].split()[:2])
         st.markdown(f"""
         <div class="sidebar-brand">
-            <div class="sidebar-brand-title">💶 NZWL Dashboard</div>
+            <div class="sidebar-brand-title">NZWL Dashboard</div>
             <div class="sidebar-brand-sub">Zahlungsplanung &amp; Liquidität</div>
         </div>
         <div class="sidebar-user">
@@ -423,26 +425,13 @@ else:
         st.selectbox("Gesellschaft", ges_opts, key="selected_gesellschaft")
 
         # ── Navigation ───────────────────────────────────────────────────────
-        # Icons + Gruppen
-        NAV_ICONS = {
-            "Dashboard V01 (alt)":     "📊",
-            "Dashboard V02":           "✨",
-            "Faelligkeiten V01 (alt)": "📅",
-            "Faelligkeiten V02":       "✨",
-            "Kreditor-Debitor":        "🔗",
-            "Nicht verknüpft":         "⚠️",
-            "Zahlungsplanung":         "💳",
-            "Liquiditaet":             "💧",
-            "Berichte":                "📑",
-            "Admin-Bereich":           "⚙️",
-        }
         NAV_GROUPS = {
             "Dashboard V01 (alt)":     "Analyse",
             "Dashboard V02":           "Analyse",
             "Faelligkeiten V01 (alt)": "Fälligkeiten",
             "Faelligkeiten V02":       "Fälligkeiten",
             "Kreditor-Debitor":        "Offene Posten",
-            "Nicht verknüpft":         "Offene Posten",
+            "Nicht verküpft":         "Offene Posten",
             "Zahlungsplanung":         "Planung",
             "Liquiditaet":             "Planung",
             "Berichte":                "Berichte",
@@ -457,12 +446,11 @@ else:
                             unsafe_allow_html=True)
                 last_group = grp
 
-            icon      = NAV_ICONS.get(page_name, "▸")
             is_active = st.session_state["nav_selection"] == page_name
             btn_type  = "primary" if is_active else "secondary"
 
             if st.button(
-                f"{icon}  {page_name}",
+                page_name,
                 key=f"nav_{page_name}",
                 type=btn_type,
                 use_container_width=True,
@@ -472,10 +460,10 @@ else:
 
         # ── Footer-Buttons ────────────────────────────────────────────────────
         st.markdown('<div class="sidebar-footer">', unsafe_allow_html=True)
-        if st.button("🗑️  Cache leeren", use_container_width=True):
+        if st.button("Cache leeren", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
-        if st.button("🚪  Logout", use_container_width=True):
+        if st.button("Logout", use_container_width=True):
             logout()
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
