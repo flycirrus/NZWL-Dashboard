@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NZWL Dashboard - Benutzerhandbuch Phase 1</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 25mm 18mm;
+  }
+  @media print {
+    .no-print { display: none !important; }
+    body { font-size: 10pt; }
+    section.page-break { page-break-before: always; }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    color: #2D3748;
+    line-height: 1.65;
+    font-size: 11pt;
+    background: #fff;
+    max-width: 210mm;
+    margin: 0 auto;
+  }
+
+  /* ── Cover ── */
+  .cover {
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 95vh;
+    text-align: center;
+    padding: 60px 40px;
+  }
+  .cover-logo {
+    width: 100px; height: 100px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 34pt; font-weight: 800;
+    margin-bottom: 32px; letter-spacing: -1px;
+    box-shadow: 0 8px 30px rgba(31,78,121,0.25);
+  }
+  .cover h1 {
+    font-size: 26pt; color: #1F4E79; font-weight: 700;
+    margin-bottom: 6px; letter-spacing: -0.5px;
+  }
+  .cover h2 {
+    font-size: 15pt; color: #2E75B6; font-weight: 400;
+    margin-bottom: 40px;
+  }
+  .cover-meta {
+    font-size: 10pt; color: #718096; margin-top: 50px; line-height: 2.1;
+  }
+  .cover-meta strong { color: #4A5568; }
+  .cover-badge {
+    display: inline-block; background: #EBF5FB; color: #1F4E79;
+    font-weight: 600; font-size: 9pt; padding: 6px 20px;
+    border-radius: 20px; letter-spacing: 0.5px;
+    margin-top: 20px; border: 1px solid #BEE3F8;
+  }
+
+  /* ── TOC ── */
+  .toc { page-break-after: always; padding: 50px 40px; }
+  .toc h2 {
+    font-size: 18pt; color: #1F4E79; margin-bottom: 25px;
+    padding-bottom: 8px; border-bottom: 2px solid #1F4E79;
+  }
+  .toc ol { list-style: none; counter-reset: toc; }
+  .toc ol li {
+    counter-increment: toc; padding: 10px 0;
+    border-bottom: 1px solid #EDF2F7; font-size: 11pt;
+  }
+  .toc ol li::before {
+    content: counter(toc) "."; font-weight: 700; color: #1F4E79;
+    margin-right: 12px; min-width: 28px; display: inline-block;
+  }
+  .toc ol li a { color: #2D3748; text-decoration: none; }
+
+  /* ── Content ── */
+  .content { padding: 0 24px; }
+  section { margin-bottom: 32px; }
+  section.page-break { page-break-before: always; }
+
+  h2 {
+    font-size: 15pt; color: #1F4E79; margin: 28px 0 12px 0;
+    padding-bottom: 5px; border-bottom: 2px solid #2E75B6;
+  }
+  h3 { font-size: 12pt; color: #2E75B6; margin: 18px 0 8px 0; }
+  h4 { font-size: 10.5pt; color: #4A5568; margin: 12px 0 5px 0; font-weight: 600; }
+  p { margin-bottom: 9px; }
+
+  /* ── Info-Boxen ── */
+  .box {
+    padding: 13px 18px; margin: 12px 0; border-radius: 0 6px 6px 0;
+    font-size: 10pt; border-left: 4px solid #2E75B6; background: #EBF8FF;
+  }
+  .box.warn  { border-left-color: #D69E2E; background: #FFFBEB; }
+  .box.ok    { border-left-color: #38761D; background: #F0FFF4; }
+  .box.red   { border-left-color: #C00000; background: #FFF5F5; }
+  .box strong { display: block; margin-bottom: 2px; }
+
+  /* ── Tabellen ── */
+  table {
+    width: 100%; border-collapse: collapse;
+    margin: 10px 0 16px 0; font-size: 10pt;
+  }
+  th {
+    background: #1F4E79; color: #fff; text-align: left;
+    padding: 9px 12px; font-weight: 600; font-size: 9pt;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  td { padding: 8px 12px; border-bottom: 1px solid #E2E8F0; }
+  tr:nth-child(even) td { background: #F7FAFC; }
+
+  /* ── Schritte ── */
+  .steps { list-style: none; counter-reset: steps; margin: 10px 0; }
+  .steps li {
+    counter-increment: steps; position: relative;
+    padding: 10px 0 10px 48px; margin-bottom: 4px;
+  }
+  .steps li::before {
+    content: counter(steps); position: absolute; left: 0; top: 8px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #1F4E79; color: #fff; font-weight: 700; font-size: 12pt;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Ampel-Anzeige ── */
+  .ampel { display: inline-flex; gap: 6px; align-items: center; }
+  .ampel span {
+    display: inline-block; width: 22px; height: 22px;
+    border-radius: 50%; text-align: center; line-height: 22px; font-size: 14px;
+  }
+  .ampel-label {
+    font-size: 9pt; font-weight: 600; margin-left: 4px;
+  }
+
+  /* ── Rollen-Badge ── */
+  .rolle {
+    display: inline-block; padding: 2px 10px; border-radius: 10px;
+    font-size: 8.5pt; font-weight: 600; margin: 0 2px;
+  }
+  .rolle.admin { background: #FED7D7; color: #9B2C2C; }
+  .rolle.vorb  { background: #BEE3F8; color: #2B6CB0; }
+  .rolle.gl    { background: #FEFCBF; color: #975A16; }
+  .rolle.fibu  { background: #C6F6D5; color: #276749; }
+
+  /* ── Sonstiges ── */
+  ul { margin: 6px 0 8px 22px; }
+  ul li { margin-bottom: 3px; }
+  code {
+    background: #EDF2F7; padding: 2px 6px; border-radius: 3px;
+    font-size: 9.5pt; font-family: 'Consolas', 'Courier New', monospace;
+  }
+  .footer {
+    margin-top: 50px; padding: 20px 0; border-top: 1px solid #E2E8F0;
+    text-align: center; font-size: 8.5pt; color: #A0AEC0;
+  }
+  .flow {
+    display: flex; align-items: center; gap: 0;
+    margin: 16px 0; flex-wrap: wrap; justify-content: center;
+  }
+  .flow-step {
+    text-align: center; padding: 10px 14px; border-radius: 8px;
+    font-size: 9pt; font-weight: 600; min-width: 100px;
+  }
+  .flow-step.blue { background: #2E75B6; color: #fff; }
+  .flow-step.green { background: #38761D; color: #fff; }
+  .flow-step.gold {
+    background: #D69E2E; color: #fff;
+    border-radius: 50%; min-width: 60px; padding: 14px 8px;
+  }
+  .flow-label {
+    display: block; font-size: 7.5pt; font-weight: 400;
+    margin-top: 2px; opacity: 0.85;
+  }
+  .flow-arrow { font-size: 16pt; color: #A0AEC0; margin: 0 3px; }
+  .kpi-row {
+    display: flex; gap: 12px; margin: 12px 0; flex-wrap: wrap;
+  }
+  .kpi-card {
+    flex: 1; min-width: 120px; background: #F7FAFC; border-radius: 8px;
+    padding: 14px; text-align: center; border: 1px solid #E2E8F0;
+  }
+  .kpi-card .label { font-size: 8.5pt; color: #718096; text-transform: uppercase; letter-spacing: 0.3px; }
+  .kpi-card .value { font-size: 16pt; font-weight: 700; color: #1F4E79; margin: 4px 0; }
+  .kpi-card .sub { font-size: 8pt; color: #A0AEC0; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ -->
+<!--                COVER                      -->
+<!-- ══════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">ZWL</div>
+  <h1>Zahlungsplanung &amp;<br>Liquidit&auml;tssteuerung</h1>
+  <h2>Benutzerhandbuch &mdash; Phase&nbsp;1</h2>
+  <div class="cover-badge">NZWL Leipzig &nbsp;&bull;&nbsp; ZWL Slovakia</div>
+  <div class="cover-meta">
+    <strong>Dokument:</strong> NZWL Dashboard &ndash; User Guide Phase 1<br>
+    <strong>Version:</strong> 1.0<br>
+    <strong>Stand:</strong> 31. Mai 2026<br>
+    <strong>Erstellt f&uuml;r:</strong> ZWL-Kreis &ndash; Gesch&auml;ftsf&uuml;hrung &amp; operative Mitarbeiter<br>
+    <strong>Vertraulichkeit:</strong> Nur f&uuml;r internen Gebrauch
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!--           TABLE OF CONTENTS               -->
+<!-- ══════════════════════════════════════════ -->
+<div class="toc">
+  <h2>Inhaltsverzeichnis</h2>
+  <ol>
+    <li><a href="#s1">&Uuml;berblick &ndash; Was ist das NZWL Dashboard?</a></li>
+    <li><a href="#s2">Zugang &amp; Anmeldung</a></li>
+    <li><a href="#s3">Rollen &amp; Berechtigungen</a></li>
+    <li><a href="#s4">Navigation &amp; Gesellschaftsfilter</a></li>
+    <li><a href="#s5">Seite: Dashboard (Startseite &amp; Kennzahlen)</a></li>
+    <li><a href="#s6">Seite: F&auml;lligkeiten (Hauptarbeitsseite)</a></li>
+    <li><a href="#s7">Das Ampel-System (Traffic Lights)</a></li>
+    <li><a href="#s8">Seite: Kreditor-Debitor (Detailansicht)</a></li>
+    <li><a href="#s9">Seite: Nicht verkn&uuml;pft (Analyse)</a></li>
+    <li><a href="#s10">Seite: Admin-Bereich</a></li>
+    <li><a href="#s11">Daten exportieren (CSV)</a></li>
+    <li><a href="#s12">Hinweise &amp; FAQ</a></li>
+    <li><a href="#s13">Phase-2-Ausblick</a></li>
+  </ol>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!--              CONTENT                      -->
+<!-- ══════════════════════════════════════════ -->
+<div class="content">
+
+<!-- ──────────── 1. ÜBERBLICK ──────────── -->
+<section id="s1">
+  <h2>1. &Uuml;berblick &ndash; Was ist das NZWL Dashboard?</h2>
+  <p>
+    Das <strong>NZWL Dashboard</strong> ist eine webbasierte Anwendung f&uuml;r den ZWL-Kreis
+    zur &Uuml;berwachung und Steuerung von Kreditoren-Verbindlichkeiten. Das System verkn&uuml;pft
+    automatisch offene Rechnungen (Kreditoren) mit den zugeh&ouml;rigen Endkunden (Debitoren)
+    und zeigt auf einen Blick, welche Zahlungen wann f&auml;llig sind.
+  </p>
+
+  <h3>Kernfunktionen Phase&nbsp;1</h3>
+  <table>
+    <thead><tr><th>Funktion</th><th>Beschreibung</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Dashboard</strong></td><td>Kennzahlen, Top-Kreditoren-Diagramme, Match-Quote, Statistik</td></tr>
+      <tr><td><strong>F&auml;lligkeiten</strong></td><td>Alle Belege mit Ampel-Status, Filter, Sortierung, Sammel-Aktionen, Pagination</td></tr>
+      <tr><td><strong>Kreditor-Debitor</strong></td><td>Detailansicht der Verkn&uuml;pfung: Rohteil &rarr; Fertigteil &rarr; Endkunde</td></tr>
+      <tr><td><strong>Nicht verkn&uuml;pft</strong></td><td>Analyse der nicht zuordenbaren Belege nach Grund und Branche</td></tr>
+      <tr><td><strong>Ampel-System</strong></td><td>Belege per Klick als Rot/Gelb/Gr&uuml;n markieren &ndash; revisionssicher</td></tr>
+      <tr><td><strong>Admin-Bereich</strong></td><td>Nutzerverwaltung, Ampel-Historie, System-Rollback</td></tr>
+      <tr><td><strong>CSV-Export</strong></td><td>Alle Seiten mit Download-Option</td></tr>
+      <tr><td><strong>Gesellschaftsfilter</strong></td><td>Daten nach NZWL oder ZWL&nbsp;SK einschr&auml;nken</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box">
+    <strong>Datenquelle</strong>
+    Die Daten stammen aus der <em>Kernlogik</em> &ndash; einem automatisierten Prozess,
+    der SAP-Daten analysiert und Kreditoren mit Debitoren &uuml;ber eine 4-Schritt-Kette
+    (Rohteil &rarr; BOM &rarr; Fertigteil &rarr; Debitor) verkn&uuml;pft.
+  </div>
+
+  <div class="box warn">
+    <strong>Demo-System</strong>
+    Phase 1 l&auml;uft im Testbetrieb. Auf dem Login-Bildschirm erscheint ein
+    entsprechender Hinweis. Die Zugangsdaten sind vorl&auml;ufig.
+  </div>
+</section>
+
+
+<!-- ──────────── 2. ZUGANG ──────────── -->
+<section id="s2" class="page-break">
+  <h2>2. Zugang &amp; Anmeldung</h2>
+
+  <h3>Dashboard aufrufen</h3>
+  <p>
+    &Ouml;ffnen Sie einen Webbrowser (Chrome oder Edge empfohlen) und rufen Sie
+    die folgende Adresse auf:
+  </p>
+  <div class="box ok">
+    <strong>Dashboard-URL</strong>
+    <code>http://&lt;Server-IP&gt;:8501</code><br>
+    Die genaue Server-Adresse erhalten Sie von Ihrem Projektleiter oder der IT-Abteilung.
+  </div>
+
+  <h3>Anmeldevorgang</h3>
+  <ol class="steps">
+    <li>
+      <strong>Benutzername eingeben</strong><br>
+      Tragen Sie Ihren pers&ouml;nlichen Benutzernamen ein.
+    </li>
+    <li>
+      <strong>Passwort eingeben</strong><br>
+      Tragen Sie Ihr Passwort ein.
+    </li>
+    <li>
+      <strong>&bdquo;Einloggen&ldquo; klicken</strong><br>
+      Bei Erfolg gelangen Sie direkt zur Startseite (Dashboard).
+    </li>
+  </ol>
+
+  <h3>Demo-Zugangsdaten</h3>
+  <table>
+    <thead><tr><th>Benutzername</th><th>Passwort</th><th>Rolle</th></tr></thead>
+    <tbody>
+      <tr><td><code>admin</code></td><td><code>pwd</code></td><td>Administrator (Vollzugriff)</td></tr>
+      <tr><td><code>vorbereiter</code></td><td><code>pwd</code></td><td>Vorbereiter</td></tr>
+      <tr><td><code>leitung</code></td><td><code>pwd</code></td><td>Gesch&auml;ftsleitung</td></tr>
+      <tr><td><code>fibu</code></td><td><code>pwd</code></td><td>Finanzbuchhaltung</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Abmelden</h3>
+  <p>Klicken Sie in der Seitenleiste auf <strong>&bdquo;Logout&ldquo;</strong>.</p>
+</section>
+
+
+<!-- ──────────── 3. ROLLEN ──────────── -->
+<section id="s3">
+  <h2>3. Rollen &amp; Berechtigungen</h2>
+  <table>
+    <thead>
+      <tr><th>Rolle</th><th>Dashboard</th><th>F&auml;lligkeiten</th><th>Kred.-Deb.</th><th>Nicht verkn.</th><th>Admin</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="rolle vorb">Vorbereiter</span></td>
+        <td>Lesen</td><td>Lesen + Ampel setzen</td><td>Lesen</td><td>Lesen</td><td>&ndash;</td>
+      </tr>
+      <tr>
+        <td><span class="rolle gl">Gesch&auml;ftsleitung</span></td>
+        <td>Lesen</td><td>Lesen + Ampel setzen</td><td>Lesen</td><td>Lesen</td><td>&ndash;</td>
+      </tr>
+      <tr>
+        <td><span class="rolle fibu">FiBu</span></td>
+        <td>Lesen</td><td>Lesen + Ampel setzen</td><td>Lesen</td><td>Lesen</td><td>&ndash;</td>
+      </tr>
+      <tr>
+        <td><span class="rolle admin">Admin</span></td>
+        <td>Lesen + Kernlogik</td><td>Lesen + Ampel + Sammel</td><td>Lesen</td><td>Lesen</td>
+        <td>Nutzer, Historie, Rollback</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+
+<!-- ──────────── 4. NAVIGATION ──────────── -->
+<section id="s4" class="page-break">
+  <h2>4. Navigation &amp; Gesellschaftsfilter</h2>
+
+  <h3>Seitenleiste (links)</h3>
+  <p>Nach dem Login erscheint die Seitenleiste mit folgenden Elementen:</p>
+  <ul>
+    <li><strong>Name &amp; Rolle</strong> &ndash; zeigt den angemeldeten Benutzer</li>
+    <li><strong>Gesellschaft</strong> &ndash; Dropdown zur Datenfilterung</li>
+    <li><strong>Navigation</strong> &ndash; Radiobuttons zum Seitenwechsel</li>
+    <li><strong>Cache leeren</strong> &ndash; l&auml;dt die Quelldaten neu</li>
+    <li><strong>Logout</strong> &ndash; Abmeldung</li>
+  </ul>
+
+  <h3>Verf&uuml;gbare Seiten</h3>
+  <table>
+    <thead><tr><th>Seite</th><th>Beschreibung</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Dashboard</td><td>Kennzahlen &amp; Top-Kreditoren</td><td>Aktiv</td></tr>
+      <tr><td>F&auml;lligkeiten</td><td>Belege mit Ampel-Status und Filtern</td><td>Aktiv</td></tr>
+      <tr><td>Kreditor-Debitor</td><td>Detail-Verkn&uuml;pfungen</td><td>Aktiv</td></tr>
+      <tr><td>Nicht verkn&uuml;pft</td><td>Analyse nicht zuordenbarer Belege</td><td>Aktiv</td></tr>
+      <tr><td>Zahlungsplanung</td><td>Zweistufiger Freigabeprozess</td><td>Phase 2</td></tr>
+      <tr><td>Liquidit&auml;t</td><td>Zufluss vs. Abfluss</td><td>Phase 2</td></tr>
+      <tr><td>Berichte</td><td>Audit-Log &amp; Exporte</td><td>Phase 2</td></tr>
+      <tr><td>Admin-Bereich</td><td>Nutzer, Historie, Rollback</td><td>Aktiv (nur Admin)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Gesellschaftsfilter</h3>
+  <table>
+    <thead><tr><th>Auswahl</th><th>Zeigt Daten von</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Beide</strong></td><td>NZWL Leipzig und ZWL Slovakia gemeinsam</td></tr>
+      <tr><td><strong>NZWL</strong></td><td>Nur NZWL Leipzig GmbH</td></tr>
+      <tr><td><strong>ZWL_SK</strong></td><td>Nur ZWL Slovakia s.r.o.</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <strong>Hinweis</strong>
+    Wenn Ihr Konto nur einer Gesellschaft zugeordnet ist, wird automatisch
+    nur diese Gesellschaft angezeigt.
+  </div>
+</section>
+
+
+<!-- ──────────── 5. DASHBOARD ──────────── -->
+<section id="s5">
+  <h2>5. Seite: Dashboard (Startseite &amp; Kennzahlen)</h2>
+  <p>Die Startseite gibt einen &Uuml;berblick &uuml;ber die aktuelle Finanzsituation des ZWL-Kreises.</p>
+
+  <h3>Kennzahlen (oberer Bereich)</h3>
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="label">Gesamtverbindlichkeiten</div>
+      <div class="value" style="font-size:12pt;">X,XX M&euro;</div>
+      <div class="sub">Alle offenen Kreditoren-Belege</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Kreditoren</div>
+      <div class="value" style="font-size:12pt;">X / Y</div>
+      <div class="sub">verkn&uuml;pft / gesamt</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Buchungsbelege</div>
+      <div class="value" style="font-size:12pt;">X</div>
+      <div class="sub">OPOS-Belege</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Match-Quote</div>
+      <div class="value" style="font-size:12pt;">XX %</div>
+      <div class="sub">Anteil verkn&uuml;pfter Positionen</div>
+    </div>
+  </div>
+  <p>
+    Unter den Kennzahlen wird die Aufteilung farblich dargestellt:<br>
+    <span style="color:#38761D;font-weight:600;">&#9679;</span> Verkn&uuml;pfter Betrag &nbsp;|&nbsp;
+    <span style="color:#C00000;font-weight:600;">&#9679;</span> Nicht verkn&uuml;pfter Betrag
+  </p>
+
+  <h3>F&auml;lligkeiten nach Woche</h3>
+  <p>
+    F&uuml;nf Karten zeigen die Betr&auml;ge, die in verschiedenen Zeitr&auml;umen f&auml;llig werden:
+  </p>
+  <table>
+    <thead><tr><th>Karte</th><th>Zeitraum</th></tr></thead>
+    <tbody>
+      <tr><td style="color:#C00000;font-weight:600;">&Uuml;berf&auml;llig</td><td>Vor dieser Woche (Montag)</td></tr>
+      <tr><td><strong>Diese Woche</strong></td><td>Montag &ndash; Sonntag der laufenden Woche</td></tr>
+      <tr><td><strong>N&auml;chste Woche</strong></td><td>Folgende Kalenderwoche</td></tr>
+      <tr><td><strong>In 2 Wochen</strong></td><td>&Uuml;bern&auml;chste Kalenderwoche</td></tr>
+      <tr><td><strong>Sp&auml;ter</strong></td><td>Ab 3+ Wochen in der Zukunft</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Durch Klick auf <strong>&bdquo;Filtern&ldquo;</strong> bei einer Karte werden die
+    untenstehenden Diagramme auf diesen Zeitraum eingeschr&auml;nkt.
+  </p>
+
+  <h3>Top-10-Diagramme</h3>
+  <ul>
+    <li><strong>Top 10 Kreditoren nach Betrag</strong> &ndash; Balkendiagramm der gr&ouml;&szlig;ten Verbindlichkeiten</li>
+    <li><strong>Top 10 Kreditoren nach Endkunden</strong> &ndash; Welche Kreditoren die meisten Endkunden betreffen</li>
+  </ul>
+  <p>Tooltip zeigt: Kreditor-Name, Betrag, Anzahl Endkunden, Endkunden-Namen.</p>
+
+  <h3>Verkn&uuml;pfungsstatistik &amp; Kreditor-&Uuml;bersicht</h3>
+  <p>
+    Am Ende der Seite finden Sie die Statistik der 4-Schritt-Kette sowie eine
+    sortierbare Kreditor-Tabelle mit CSV-Download.
+  </p>
+</section>
+
+
+<!-- ──────────── 6. FÄLLIGKEITEN ──────────── -->
+<section id="s6" class="page-break">
+  <h2>6. Seite: F&auml;lligkeiten (Hauptarbeitsseite)</h2>
+  <p>
+    Dies ist die <strong>zentrale Arbeitsseite</strong> f&uuml;r die t&auml;gliche Arbeit.
+    Hier werden alle Belege mit ihrem Ampel-Status, F&auml;lligkeitsdatum und
+    Endkunden-Zuordnung angezeigt.
+  </p>
+
+  <h3>Ampel-Status-&Uuml;bersicht</h3>
+  <p>Vier Karten zeigen die Verteilung der Ampel-Status:</p>
+  <table>
+    <thead><tr><th>Ampel</th><th>Bedeutung</th><th>Anzeige</th></tr></thead>
+    <tbody>
+      <tr><td>&#128308; Rot</td><td>Stop / Pr&uuml;fen</td><td>Anzahl Belege + Betrag</td></tr>
+      <tr><td>&#128993; Gelb</td><td>In Pr&uuml;fung</td><td>Anzahl Belege + Betrag</td></tr>
+      <tr><td>&#128994; Gr&uuml;n</td><td>Freigegeben</td><td>Anzahl Belege + Betrag</td></tr>
+      <tr><td>&#9898; Kein Status</td><td>Noch nicht bearbeitet</td><td>Anzahl Belege + Betrag</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Zeitraum-Filter</h3>
+  <p>
+    Sechs klickbare Karten filtern nach Zeitraum:
+    <strong>&Uuml;berf&auml;llig</strong>, <strong>Diese Woche</strong>,
+    <strong>N&auml;chste Woche</strong>, <strong>In 2 Wochen</strong>,
+    <strong>In 3 Wochen</strong>, <strong>Sp&auml;ter</strong>.
+    Erneutes Klicken hebt den Filter auf. Der Button <strong>&bdquo;Alle&ldquo;</strong>
+    setzt alle Filter zur&uuml;ck.
+  </p>
+
+  <h3>Detailfilter</h3>
+  <p>Vier Dropdown-Filter erm&ouml;glichen eine gezielte Einschr&auml;nkung:</p>
+  <table>
+    <thead><tr><th>Filter</th><th>Optionen</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Kalenderwoche</strong></td><td>&bdquo;Alle&ldquo; oder spezifische KW (z.B. KW&nbsp;23 / 2026)</td></tr>
+      <tr><td><strong>Kreditor</strong></td><td>&bdquo;Alle&ldquo; oder ein bestimmter Kreditor</td></tr>
+      <tr><td><strong>Verkn&uuml;pfung</strong></td><td>&bdquo;Alle&ldquo;, &bdquo;Verkn&uuml;pft (mit Debitor)&ldquo;, &bdquo;Nicht verkn&uuml;pft&ldquo;</td></tr>
+      <tr><td><strong>Endkunde / Grund</strong></td><td>Dynamisch: Endkunden-Name (bei verkn&uuml;pften) oder Grund (bei nicht verkn&uuml;pften)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Sammel-Aktionen</h3>
+  <div class="box ok">
+    <strong>Alle gefilterten Belege auf einmal &auml;ndern</strong>
+    Im aufklappbaren Bereich &bdquo;Sammel-Aktionen&ldquo; k&ouml;nnen Sie den Ampel-Status
+    f&uuml;r <em>alle aktuell gefilterten Belege</em> auf einmal setzen:
+    &#128308;&nbsp;Alle Stop &nbsp;|&nbsp; &#128993;&nbsp;Alle in Pr&uuml;fung &nbsp;|&nbsp;
+    &#128994;&nbsp;Alle Freigeben &nbsp;|&nbsp; &#9898;&nbsp;Alle Zur&uuml;cksetzen
+  </div>
+
+  <h3>Belegtabelle</h3>
+  <p>Die Tabelle zeigt pro Zeile einen Beleg mit folgenden Spalten:</p>
+  <table>
+    <thead><tr><th>Spalte</th><th>Beschreibung</th><th>Interaktion</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Ampel</strong></td><td>Drei klickbare Kreise: &#128308; &#128993; &#128994;</td><td>Klick setzt Status; Klick auf aktiven Status setzt zur&uuml;ck</td></tr>
+      <tr><td><strong>F&auml;llig am</strong></td><td>Datum (TT.MM.JJJJ)</td><td>Sortierbar &uarr;&darr;</td></tr>
+      <tr><td><strong>Beleg</strong></td><td>Belegnummer</td><td>&ndash;</td></tr>
+      <tr><td><strong>Kreditor</strong></td><td>Name des Kreditors</td><td>Sortierbar &uarr;&darr;</td></tr>
+      <tr><td><strong>Betrag</strong></td><td>Offener Betrag in EUR</td><td>Sortierbar &uarr;&darr;</td></tr>
+      <tr><td><strong>Endkunden / Grund</strong></td><td>Endkunden-Name (verkn&uuml;pft) oder Grund (nicht verkn&uuml;pft, kursiv grau)</td><td>Sortierbar &uarr;&darr;</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Die Tabelle ist <strong>paginiert</strong> (20 Zeilen pro Seite).
+    Bl&auml;ttern Sie mit <strong>&laquo; Zur&uuml;ck</strong> und <strong>Weiter &raquo;</strong>.
+  </p>
+
+  <h3>Auswertungen (Tabs am Seitenende)</h3>
+  <ul>
+    <li><strong>Aufschl&uuml;sselung pro Kreditor</strong> &ndash; Tabelle mit Betrag und Beleganzahl je Kreditor</li>
+    <li><strong>Kreuz-Aufschl&uuml;sselung: Kreditor &times; Endkunde/Grund</strong> &ndash; Pivot-Tabelle mit EUR-Betr&auml;gen</li>
+  </ul>
+</section>
+
+
+<!-- ──────────── 7. AMPEL-SYSTEM ──────────── -->
+<section id="s7" class="page-break">
+  <h2>7. Das Ampel-System (Traffic Lights)</h2>
+  <p>
+    Das Ampel-System ist das zentrale Steuerungselement f&uuml;r die Zahlungsfreigabe
+    in Phase&nbsp;1. Jeder Beleg kann mit einem von vier Status versehen werden.
+  </p>
+
+  <h3>Die vier Status</h3>
+  <table>
+    <thead><tr><th>Ampel</th><th>Status</th><th>Bedeutung</th><th>Typische Verwendung</th></tr></thead>
+    <tbody>
+      <tr>
+        <td style="font-size:16pt;">&#128308;</td><td><strong>Rot</strong></td>
+        <td>Stop / Pr&uuml;fen</td>
+        <td>Zahlung stoppen &ndash; Beleg muss gepr&uuml;ft werden</td>
+      </tr>
+      <tr>
+        <td style="font-size:16pt;">&#128993;</td><td><strong>Gelb</strong></td>
+        <td>In Pr&uuml;fung</td>
+        <td>Beleg wird gerade gepr&uuml;ft, Entscheidung steht noch aus</td>
+      </tr>
+      <tr>
+        <td style="font-size:16pt;">&#128994;</td><td><strong>Gr&uuml;n</strong></td>
+        <td>Freigegeben</td>
+        <td>Zahlung kann ausgef&uuml;hrt werden</td>
+      </tr>
+      <tr>
+        <td style="font-size:16pt;">&#9898;</td><td><strong>Kein Status</strong></td>
+        <td>Nicht bearbeitet</td>
+        <td>Beleg wurde noch nicht bewertet</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>So setzen Sie einen Ampel-Status</h3>
+  <ol class="steps">
+    <li>
+      <strong>&Ouml;ffnen Sie die F&auml;lligkeiten-Seite</strong><br>
+      Navigieren Sie &uuml;ber die Seitenleiste zu &bdquo;F&auml;lligkeiten&ldquo;.
+    </li>
+    <li>
+      <strong>Finden Sie den Beleg</strong><br>
+      Nutzen Sie die Filter (Kreditor, Woche, Zeitraum) oder bl&auml;ttern Sie durch die Tabelle.
+    </li>
+    <li>
+      <strong>Klicken Sie auf die gew&uuml;nschte Ampel-Farbe</strong><br>
+      In der Spalte &bdquo;Ampel&ldquo; sehen Sie drei Kreise (&#128308; &#128993; &#128994;).
+      Der aktive Status leuchtet farbig, die anderen sind ausgegraut.
+      Klicken Sie auf die gew&uuml;nschte Farbe.
+    </li>
+    <li>
+      <strong>Status zur&uuml;cksetzen</strong><br>
+      Klicken Sie erneut auf die bereits aktive Farbe &ndash; der Status wird zur&uuml;ckgesetzt.
+    </li>
+  </ol>
+
+  <div class="box ok">
+    <strong>Revisionssicherheit</strong>
+    Jede Ampel-&Auml;nderung wird automatisch und unwiderruflich protokolliert &ndash;
+    mit Belegnummer, neuem Status, Zeitstempel und Benutzername.
+    Diese Historie kann nicht gel&ouml;scht werden (Append-Only-Prinzip).
+  </div>
+
+  <h3>Sammel-Aktionen f&uuml;r mehrere Belege</h3>
+  <p>
+    Um den Status f&uuml;r viele Belege gleichzeitig zu setzen:
+  </p>
+  <ol class="steps">
+    <li><strong>Filtern</strong> Sie die Tabelle auf die gew&uuml;nschten Belege (z.B. alle Belege eines Kreditors)</li>
+    <li>&Ouml;ffnen Sie den Bereich <strong>&bdquo;Sammel-Aktionen&ldquo;</strong></li>
+    <li>Klicken Sie auf den gew&uuml;nschten Status-Button (z.B. &#128994; &bdquo;Alle Freigeben&ldquo;)</li>
+  </ol>
+  <p>Alle aktuell sichtbaren (gefilterten) Belege erhalten den neuen Status.</p>
+</section>
+
+
+<!-- ──────────── 8. KREDITOR-DEBITOR ──────────── -->
+<section id="s8">
+  <h2>8. Seite: Kreditor-Debitor (Detailansicht)</h2>
+  <p>
+    Diese Seite zeigt die <strong>vollst&auml;ndige Verkn&uuml;pfungskette</strong>
+    von Kreditoren-Rechnungen zu den zugeh&ouml;rigen Endkunden.
+  </p>
+
+  <h3>Filter</h3>
+  <ul>
+    <li><strong>Kreditor</strong> &ndash; nach Kreditor-Name filtern</li>
+    <li><strong>Debitor (Endkunde)</strong> &ndash; nach Endkunden filtern</li>
+    <li><strong>Quelle</strong> &ndash; nach Datenquelle filtern</li>
+  </ul>
+
+  <h3>Kennzahlen</h3>
+  <p>Vier KPI-Karten zeigen: Buchungsbelege, Kreditoren, Endkunden, Offener Betrag.</p>
+
+  <h3>Zwei Ansichten</h3>
+  <table>
+    <thead><tr><th>Ansicht</th><th>Beschreibung</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Pro Buchungsbeleg (gruppiert)</strong></td>
+        <td>Eine Zeile pro Beleg mit aggregierten Rohteilen, Fertigteilen und Endkunden</td>
+      </tr>
+      <tr>
+        <td><strong>Alle Detail-Zeilen</strong></td>
+        <td>Jede einzelne Verkn&uuml;pfung: Beleg &rarr; Rohteil &rarr; Fertigteil &rarr; Debitor</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+
+<!-- ──────────── 9. NICHT VERKNÜPFT ──────────── -->
+<section id="s9" class="page-break">
+  <h2>9. Seite: Nicht verkn&uuml;pft (Analyse)</h2>
+  <p>
+    Diese Seite analysiert, <strong>warum</strong> bestimmte Belege keinem Endkunden
+    zugeordnet werden konnten. Das hilft bei der Datenbereinigung und Prozessoptimierung.
+  </p>
+
+  <h3>Match-Quote</h3>
+  <p>
+    Am Seitenanfang sehen Sie die prozentuale Aufteilung in verkn&uuml;pfte
+    (<span style="color:#38761D;">&#9679;</span>) und nicht verkn&uuml;pfte
+    (<span style="color:#C00000;">&#9679;</span>) Betr&auml;ge.
+  </p>
+
+  <h3>Analyse-Bereiche</h3>
+  <table>
+    <thead><tr><th>Bereich</th><th>Darstellung</th><th>Spalten</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Nach Grund</strong></td>
+        <td>Donut-Diagramm + Tabelle</td>
+        <td>Grund, Belege, Anteil %, Betrag, Anteil %</td>
+      </tr>
+      <tr>
+        <td><strong>Nach Branche</strong></td>
+        <td>Balkendiagramm + Tabelle</td>
+        <td>Branche, Belege, Anteil %, Betrag, Anteil %</td>
+      </tr>
+      <tr>
+        <td><strong>Branche &times; Grund</strong></td>
+        <td>Pivot-Tabelle</td>
+        <td>Zeilen: Branche, Spalten: Grund, Werte: Anzahl &times; Betrag</td>
+      </tr>
+      <tr>
+        <td><strong>Top 15 Kreditoren</strong></td>
+        <td>Tabelle</td>
+        <td>Kreditor, Belege, Betrag, Grund-Verteilung, Branchen</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+
+<!-- ──────────── 10. ADMIN ──────────── -->
+<section id="s10">
+  <h2>10. Seite: Admin-Bereich</h2>
+  <div class="box red">
+    <strong>Nur f&uuml;r Administratoren</strong>
+    Diese Seite ist ausschlie&szlig;lich f&uuml;r Benutzer mit der Rolle
+    <span class="rolle admin">Admin</span> sichtbar.
+  </div>
+
+  <h3>Tab 1: Nutzerverwaltung</h3>
+  <ul>
+    <li>Tabelle aller Benutzer (Name, E-Mail, Rolle, Gesellschaft)</li>
+    <li>Formular zum Anlegen neuer Benutzer (Demo-Modus: nur f&uuml;r die aktuelle Sitzung)</li>
+  </ul>
+
+  <h3>Tab 2: Beleg-Statusverlauf (Ampel-Historie)</h3>
+  <p>
+    Zeigt <strong>alle jemals durchgef&uuml;hrten Ampel-&Auml;nderungen</strong>
+    in chronologischer Reihenfolge.
+  </p>
+  <p><strong>Filter:</strong></p>
+  <ul>
+    <li><strong>Belegnummer</strong> &ndash; Freitextsuche</li>
+    <li><strong>Ge&auml;ndert von</strong> &ndash; nach Benutzer filtern</li>
+    <li><strong>Ampel-Status</strong> &ndash; nach Status filtern (Rot, Gelb, Gr&uuml;n, Zur&uuml;ckgesetzt)</li>
+  </ul>
+  <p>
+    Die Historie kann als <strong>CSV-Datei exportiert</strong> werden
+    (&bdquo;Historie als CSV exportieren&ldquo;).
+  </p>
+
+  <h3>System-Wiederherstellung (Ampel-Rollback)</h3>
+  <p>
+    Mit dieser Funktion k&ouml;nnen alle Ampel-Status auf einen
+    <strong>historischen Zeitpunkt</strong> zur&uuml;ckgesetzt werden.
+  </p>
+  <ol class="steps">
+    <li>
+      <strong>Datum und Uhrzeit w&auml;hlen</strong><br>
+      W&auml;hlen Sie den Zeitpunkt, zu dem Sie den Zustand wiederherstellen m&ouml;chten.
+    </li>
+    <li>
+      <strong>Vorschau pr&uuml;fen</strong><br>
+      Das System zeigt, welche Belege sich &auml;ndern w&uuml;rden (Aktueller Status &rarr; Ziel-Status).
+    </li>
+    <li>
+      <strong>Best&auml;tigen und ausf&uuml;hren</strong><br>
+      Setzen Sie das H&auml;kchen bei &bdquo;Ja, ich m&ouml;chte zur&uuml;cksetzen&ldquo;
+      und klicken Sie auf <strong>&bdquo;Rollback ausf&uuml;hren&ldquo;</strong>.
+    </li>
+  </ol>
+  <div class="box warn">
+    <strong>Achtung</strong>
+    Der Rollback wird im Audit-Log dokumentiert. Jede &Auml;nderung wird als
+    &bdquo;[Admin-Name] (Rollback auf TT.MM.JJJJ HH:MM)&ldquo; protokolliert.
+    Der Rollback selbst ist also revisionssicher nachvollziehbar.
+  </div>
+</section>
+
+
+<!-- ──────────── 11. EXPORT ──────────── -->
+<section id="s11" class="page-break">
+  <h2>11. Daten exportieren (CSV)</h2>
+  <p>Auf mehreren Seiten stehen CSV-Downloads zur Verf&uuml;gung:</p>
+  <table>
+    <thead><tr><th>Seite</th><th>Export-Button</th><th>Inhalt</th></tr></thead>
+    <tbody>
+      <tr><td>Dashboard</td><td>&bdquo;Kreditor-&Uuml;bersicht als CSV&ldquo;</td><td>Alle Kreditoren mit Betr&auml;gen und Endkunden</td></tr>
+      <tr><td>F&auml;lligkeiten</td><td>&bdquo;F&auml;lligkeiten als CSV&ldquo;</td><td>Alle gefilterten Belege mit Status und Betr&auml;gen</td></tr>
+      <tr><td>Kreditor-Debitor</td><td>&bdquo;Als CSV herunterladen&ldquo;</td><td>Detail-Verkn&uuml;pfungen</td></tr>
+      <tr><td>Admin (Historie)</td><td>&bdquo;Historie als CSV exportieren&ldquo;</td><td>Komplette Ampel-&Auml;nderungshistorie</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <strong>CSV-Format</strong>
+    Die Dateien verwenden Semikolon (;) als Trennzeichen und deutsches Zahlenformat
+    (Komma als Dezimalzeichen). Sie k&ouml;nnen direkt in Microsoft Excel ge&ouml;ffnet werden.
+  </div>
+</section>
+
+
+<!-- ──────────── 12. FAQ ──────────── -->
+<section id="s12">
+  <h2>12. Hinweise &amp; FAQ</h2>
+
+  <h4>Wie aktualisiere ich die Daten?</h4>
+  <p>
+    Klicken Sie in der Seitenleiste auf <strong>&bdquo;Cache leeren&ldquo;</strong>.
+    Auf dem Dashboard gibt es zus&auml;tzlich den Button <strong>&bdquo;Daten neu laden&ldquo;</strong>.
+    Auf dem Windows-Server kann die Kernlogik &uuml;ber <strong>&bdquo;Kernlogik ausf&uuml;hren&ldquo;</strong>
+    direkt aus dem Dashboard gestartet werden.
+  </p>
+
+  <h4>Warum ist eine Ampel-Farbe ausgegraut?</h4>
+  <p>
+    Ausgegraute Farben bedeuten, dass dieser Status <em>nicht</em> aktiv ist.
+    Die leuchtende Farbe zeigt den aktuellen Status. Alle drei Farben ausgegraut
+    bedeutet: kein Status gesetzt.
+  </p>
+
+  <h4>Kann ich eine Ampel-&Auml;nderung r&uuml;ckg&auml;ngig machen?</h4>
+  <p>
+    <strong>Einzelner Beleg:</strong> Klicken Sie erneut auf die aktive Farbe &ndash;
+    der Status wird zur&uuml;ckgesetzt.<br>
+    <strong>Mehrere Belege:</strong> Nutzen Sie die Rollback-Funktion im Admin-Bereich,
+    um alle Belege auf einen fr&uuml;heren Zeitpunkt zur&uuml;ckzusetzen.
+  </p>
+
+  <h4>Was bedeutet &bdquo;Nicht verkn&uuml;pft&ldquo;?</h4>
+  <p>
+    Ein Beleg ist &bdquo;nicht verkn&uuml;pft&ldquo;, wenn die Kernlogik keinen Endkunden
+    (Debitor) daf&uuml;r ermitteln konnte. Die Gr&uuml;nde werden auf der gleichnamigen
+    Seite aufgeschl&uuml;sselt.
+  </p>
+
+  <h4>Welchen Browser soll ich verwenden?</h4>
+  <p>
+    <strong>Google Chrome</strong> oder <strong>Microsoft Edge</strong> (empfohlen).
+    Firefox wird ebenfalls unterst&uuml;tzt. Internet Explorer wird <strong>nicht</strong> unterst&uuml;tzt.
+  </p>
+
+  <h4>Warum steht &bdquo;Demo-System&ldquo; auf dem Login?</h4>
+  <p>
+    Das System befindet sich noch im Testbetrieb (Phase 1). Der Hinweis wird
+    entfernt, sobald der Produktivbetrieb beginnt.
+  </p>
+
+  <h4>An wen wende ich mich bei Fragen?</h4>
+  <p>Bitte kontaktieren Sie Ihren Projektleiter oder die IT-Abteilung.</p>
+</section>
+
+
+<!-- ──────────── 13. PHASE 2 ──────────── -->
+<section id="s13">
+  <h2>13. Phase-2-Ausblick</h2>
+  <p>Folgende Funktionen sind f&uuml;r die n&auml;chste Ausbaustufe vorgesehen:</p>
+  <table>
+    <thead><tr><th>Funktion</th><th>Beschreibung</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Zahlungsplanung</strong></td><td>Zweistufiger Freigabeprozess: Vorbereiter &rarr; Gesch&auml;ftsleitung &rarr; FiBu</td></tr>
+      <tr><td><strong>Liquidit&auml;t</strong></td><td>Zufluss (Debitoren) vs. Abfluss (Kreditoren) mit Prognose</td></tr>
+      <tr><td><strong>Berichte</strong></td><td>Audit-Log-Export, Wochen-/Monatsberichte als Excel &amp; PDF</td></tr>
+      <tr><td><strong>SAP-Anbindung</strong></td><td>Automatischer Datenimport aus SAP (kein manueller Export mehr)</td></tr>
+      <tr><td><strong>Benutzerverwaltung</strong></td><td>Persistente Benutzer mit sicherer Passwortspeicherung</td></tr>
+      <tr><td><strong>Benachrichtigungen</strong></td><td>E-Mail bei Freigaben, Ablehnungen und &uuml;berf&auml;lligen Belegen</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</div><!-- .content -->
+
+<div class="footer">
+  NZWL Dashboard &ndash; Benutzerhandbuch Phase 1 &nbsp;|&nbsp; Version 1.0 &nbsp;|&nbsp; Stand: 31. Mai 2026<br>
+  Erstellt f&uuml;r den internen Gebrauch des ZWL-Kreises &nbsp;|&nbsp; Vertraulich
+</div>
+
+</body>
+</html>

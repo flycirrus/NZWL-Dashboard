@@ -46,7 +46,7 @@ if not statistik.empty:
     for _, row in statistik.iterrows():
         stat[row["kennzahl"]] = row["wert"]
 
-# calculate verknüpft / nicht verknüpft betrag:
+# ── Beträge berechnen ─────────────────────────────────────────────────────────
 _betrag_verknuepft = (
     detail.drop_duplicates(subset=["buchhaltungsbeleg"])["offener_betrag"].sum()
     if not detail.empty and "buchhaltungsbeleg" in detail.columns and "offener_betrag" in detail.columns
@@ -60,30 +60,67 @@ _betrag_nicht_verknuepft = (
 
 match_quote = stat.get("Gesamte Match-Quote", "?")
 
-# Highlight summary banner as requested by the user
-st.info(f"**Matchquote {match_quote}** · davon verknüpft: **{fmt_mio(_betrag_verknuepft)}** und nicht verknüpft: **{fmt_mio(_betrag_nicht_verknuepft)}**")
+st.info(
+    f"**Matchquote {match_quote}** · verknüpft: **{fmt_mio(_betrag_verknuepft)}** · "
+    f"nicht verknüpft: **{fmt_mio(_betrag_nicht_verknuepft)}** (inkl. Gutschriften und Werkzeuge)"
+)
 
-# ── Nicht verknüpft — Aufschlüsselung ────────────────────────────────────────
-st.subheader("Nicht verknüpft — Aufschlüsselung")
+# ── Aufspaltung: Werkzeuge, Gutschriften, Rest ────────────────────────────────
+_grund_col = "grund" if "grund" in nv_raw.columns else None
+_branche_col = "branche" if "branche" in nv_raw.columns else None
+_betrag_col = "offener_betrag" if "offener_betrag" in nv_raw.columns else None
+
+ist_werkzeug = nv_raw[_branche_col].astype(str).str.strip() == "Werkzeuge" if _branche_col else pd.Series(False, index=nv_raw.index)
+ist_gutschrift = nv_raw[_grund_col] == "Gutschrift" if _grund_col else pd.Series(False, index=nv_raw.index)
+
+_wz = nv_raw[ist_werkzeug]
+_gs = nv_raw[ist_gutschrift & ~ist_werkzeug]
+_rest = nv_raw[~ist_werkzeug & ~ist_gutschrift]
+
+_n_wz = len(_wz)
+_n_gs_nur = len(_gs)
+_gs_alle = nv_raw[ist_gutschrift]
+_n_gs_total = len(_gs_alle)
+_n_gs_in_wz = _n_gs_total - _n_gs_nur
+_n_rest = len(_rest)
+_betrag_wz = _wz[_betrag_col].sum() if _betrag_col and not _wz.empty else 0.0
+_betrag_gs_alle = _gs_alle[_betrag_col].sum() if _betrag_col and not _gs_alle.empty else 0.0
+_betrag_rest = _rest[_betrag_col].sum() if _betrag_col and not _rest.empty else 0.0
+
+# ── Übersicht: 3 Metriken ────────────────────────────────────────────────────
+st.subheader("Nicht verknüpft — Übersicht")
 st.caption(
     f"Von {stat.get('Buchhaltungsbelege gesamt (OPOS)', '?')} Belegen konnten "
-    f"**{len(nv_raw)}** nicht bis zum Endkunden verknüpft werden. "
-    f"Hier die Gründe und Branchen-Verteilung."
+    f"**{len(nv_raw)}** nicht bis zum Endkunden verknüpft werden."
 )
+
+col_wz, col_gs, col_rest = st.columns(3)
+col_wz.metric("Werkzeuge", f"{_n_wz} Belege", fmt_mio(_betrag_wz))
+col_wz.caption("Branche Werkzeuge — nicht in der Analyse")
+
+_gs_hinweis = f" ({_n_gs_in_wz} davon Werkzeuge)" if _n_gs_in_wz > 0 else ""
+col_gs.metric("Gutschriften", f"{_n_gs_total} Belege", fmt_mio(abs(_betrag_gs_alle)))
+col_gs.caption(f"Negative Beträge{_gs_hinweis} — nicht in der Analyse")
+
+col_rest.metric("Verbleibend", f"{_n_rest} Belege", fmt_mio(_betrag_rest))
+col_rest.caption("Basis für die Aufschlüsselung unten")
+
+st.markdown("---")
+
+# ── Detailanalyse: nur Rest (ohne Werkzeuge + Gutschriften) ──────────────────
+st.subheader("Aufschlüsselung (ohne Werkzeuge und Gutschriften)")
+st.caption(f"**{_n_rest}** Belege · **{fmt_mio(_betrag_rest)}**")
 
 try:
     import altair as alt
 
-    _nv = nv_raw.copy()
-    _grund_col = "grund" if "grund" in _nv.columns else None
-    _branche_col = "branche" if "branche" in _nv.columns else None
-    _betrag_col = "offener_betrag" if "offener_betrag" in _nv.columns else None
+    _nv = _rest.copy()
 
     col_chart_left, col_chart_right = st.columns(2)
     col_tbl_left, col_tbl_right = st.columns(2)
 
     # ── 1) Donut-Chart nach Grund (Anzahl + Betrag als Label) ────────────
-    if _grund_col and _betrag_col:
+    if _grund_col and _betrag_col and not _nv.empty:
         grund_agg = _nv.groupby(_grund_col).agg(
             Anzahl=(_grund_col, "count"),
             Betrag=(_betrag_col, "sum"),
@@ -95,9 +132,6 @@ try:
         grund_agg["Anteil_betrag"] = (
             grund_agg["Betrag"].abs() / grund_agg["Betrag"].abs().sum() * 100
         ).round(1)
-        grund_agg["Donut_Label"] = grund_agg.apply(
-            lambda r: f"{int(r['Anzahl'])} Belege\n{r['Betrag_fmt']}", axis=1
-        )
 
         with col_chart_left:
             st.markdown("##### Anteil nach Grund")
@@ -126,13 +160,12 @@ try:
             st.altair_chart(donut + text_center, use_container_width=True)
 
         with col_tbl_left:
-            # Detail-Tabelle mit Anzahl UND Betrag
             grund_tabelle = grund_agg[["Grund", "Anzahl", "Anteil", "Betrag_fmt", "Anteil_betrag"]].copy()
             grund_tabelle.columns = ["Grund", "Belege", "Anteil Belege %", "Betrag", "Anteil Betrag %"]
             st.dataframe(grund_tabelle, use_container_width=True, hide_index=True)
 
     # ── 2) Branchen: Doppeltes Balkendiagramm (Anzahl + Betrag) ──────────
-    if _branche_col and _betrag_col:
+    if _branche_col and _betrag_col and not _nv.empty:
         branche_agg = _nv.groupby(_branche_col).agg(
             Anzahl=(_branche_col, "count"),
             Betrag=(_betrag_col, "sum"),
@@ -150,7 +183,6 @@ try:
         with col_chart_right:
             st.markdown("##### Verteilung nach Branche")
 
-            # Anzahl-Balken (dunkelblau) + Betrag als Text rechts am Balken
             _farben_branche = ["#1F4E79", "#2E75B6", "#4BACC6", "#F4B183", "#C55A11", "#A5A5A5", "#7030A0", "#548235"]
             _sort_order = branche_agg["Branche"].tolist()
 
@@ -171,7 +203,6 @@ try:
                 ],
             )
 
-            # Betrag als Text rechts neben dem Balken
             text_betrag = alt.Chart(branche_agg).mark_text(
                 align="left", dx=4, fontSize=11, color="#666"
             ).encode(
@@ -189,22 +220,19 @@ try:
             )
 
         with col_tbl_right:
-            # Detail-Tabelle mit Anzahl UND Betrag
             branche_tabelle = branche_agg[["Branche", "Anzahl", "Anteil", "Betrag_fmt", "Anteil_betrag"]].copy()
             branche_tabelle.columns = ["Branche", "Belege", "Anteil Belege %", "Betrag", "Anteil Betrag %"]
             st.dataframe(branche_tabelle, use_container_width=True, hide_index=True)
 
     # ── 3) Kreuz-Tabelle: Branche × Grund ────────────────────────────────
-    if _grund_col and _branche_col and _betrag_col:
+    if _grund_col and _branche_col and _betrag_col and not _nv.empty:
         st.markdown("##### Kreuz-Aufschlüsselung: Branche × Grund")
         st.caption("Zeigt pro Branche, welche Gründe wie oft vorkommen und welcher Betrag betroffen ist.")
 
-        # Anzahl-Pivot
         kreuz_anz = _nv.groupby([_branche_col, _grund_col]).size().reset_index(name="Anzahl")
         kreuz_betrag = _nv.groupby([_branche_col, _grund_col])[_betrag_col].sum().reset_index(name="Betrag")
         kreuz = kreuz_anz.merge(kreuz_betrag, on=[_branche_col, _grund_col])
 
-        # Formatierung: "Anzahl (Betrag)"
         kreuz["Wert"] = kreuz.apply(
             lambda r: f"{int(r['Anzahl'])}× | {fmt_mio(r['Betrag'])}", axis=1
         )
@@ -214,11 +242,9 @@ try:
         ).reset_index()
         kreuz_pivot.columns.name = None
 
-        # Bereinigung
         kreuz_pivot[_branche_col] = kreuz_pivot[_branche_col].replace({"nan": "Unbekannt", "": "Unbekannt"})
         kreuz_pivot = kreuz_pivot.rename(columns={_branche_col: "Branche"})
 
-        # Gesamtsumme pro Branche
         branche_total = _nv.groupby(_branche_col).agg(
             Gesamt_Belege=(_branche_col, "count"),
             Gesamt_Betrag=(_betrag_col, "sum"),
@@ -238,8 +264,8 @@ try:
 
     # ── 4) Top Kreditoren (nicht verknüpft) mit Betrag ────────────────────
     _kred_name_col = "kreditor_name" if "kreditor_name" in _nv.columns else None
-    if _kred_name_col and _betrag_col:
-        st.markdown("##### Top 15 Kreditoren — nicht verknüpft")
+    if _kred_name_col and _betrag_col and not _nv.empty:
+        st.markdown("##### Top 15 Kreditoren — nicht verknüpft (ohne Werkzeuge + Gutschriften)")
         st.caption("Sortiert nach Betrag. Zeigt pro Kreditor die Gründe und Branchen.")
 
         kred_nv_agg = _nv.groupby(_kred_name_col).agg(
@@ -249,9 +275,7 @@ try:
         kred_nv_agg.columns = ["Kreditor", "Belege", "Betrag"]
         kred_nv_agg = kred_nv_agg.sort_values("Betrag", ascending=False).head(15)
 
-        # Grund-Aufschlüsselung pro Kreditor: zeigt Anzahl + Betrag
         if _grund_col:
-            # Anzahl pro Kreditor × Grund
             kred_gruende_anz = _nv.groupby([_kred_name_col, _grund_col]).size().reset_index(name="Anz")
             kred_gruende_betrag = _nv.groupby([_kred_name_col, _grund_col])[_betrag_col].sum().reset_index(name="Betr")
             kred_gruende = kred_gruende_anz.merge(kred_gruende_betrag, on=[_kred_name_col, _grund_col])
@@ -268,7 +292,6 @@ try:
             if _kred_name_col in kred_nv_agg.columns and _kred_name_col != "Kreditor":
                 kred_nv_agg = kred_nv_agg.drop(columns=[_kred_name_col])
 
-        # Branche hinzufügen
         if _branche_col:
             kred_branchen = _nv.groupby(_kred_name_col)[_branche_col].agg(
                 lambda x: ", ".join(sorted(set(str(v) for v in x.dropna() if str(v) not in ("nan", ""))))
