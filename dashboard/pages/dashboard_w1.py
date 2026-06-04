@@ -534,61 +534,87 @@ if not detail.empty:
     try:
         import altair as alt
 
-        # Basis-Datensatz je nach Filter
-        # WICHTIG: df_faellig_week_unique enthält bereits detail + nv_raw
-        # (nicht verknüpfte Belege sind schon integriert).
-        # Wir verwenden DIESEN Datensatz damit Top-10-Summe mit der Kachel übereinstimmt.
+        # ── Zwei Basis-Datensätze ────────────────────────────────────────────
+        # chart_base_all   : detail + nv_raw → für Betrag-Chart (Kachel-kongruent)
+        # chart_base_verknuepft : nur detail    → für Endkunden-Chart (hat debitor_name)
+
+        # Wochen-Labels auf detail übertragen (gleiche Logik wie df_faellig_week_unique)
+        _detail_w = detail.copy()
+        if "nettofaelligkeit" in _detail_w.columns:
+            _detail_w["nettofaelligkeit"] = pd.to_datetime(_detail_w["nettofaelligkeit"], errors="coerce")
+            _detail_w = _detail_w.dropna(subset=["nettofaelligkeit"])
+            _detail_w["woche"] = _detail_w["nettofaelligkeit"].apply(
+                lambda d: "Überfällig"   if d < heute_montag
+                else "Diese Woche"       if d < naechste_kw
+                else "Nächste Woche"     if d < in_2_wochen
+                else "In 2 Wochen"       if d < in_3_wochen
+                else "Später"
+            )
+
         if not df_faellig_week_unique.empty and selected_woche != "Alle":
-            chart_base = df_faellig_week_unique[df_faellig_week_unique["woche"] == selected_woche].copy()
+            chart_base_all        = df_faellig_week_unique[df_faellig_week_unique["woche"] == selected_woche].copy()
+            chart_base_verknuepft = _detail_w[_detail_w["woche"] == selected_woche].copy() if "woche" in _detail_w.columns else _detail_w
         elif not df_faellig_week_unique.empty:
-            chart_base = df_faellig_week_unique.copy()
+            chart_base_all        = df_faellig_week_unique.copy()
+            chart_base_verknuepft = _detail_w
         else:
-            chart_base = detail.copy()
+            chart_base_all        = detail.copy()
+            chart_base_verknuepft = detail.copy()
 
         # Fallback: kreditor_name aus kreditor ableiten wenn leer
-        if "kreditor_name" in chart_base.columns:
-            chart_base["kreditor_name"] = chart_base["kreditor_name"].fillna(
-                chart_base.get("kreditor", "").astype(str)
-            )
-            chart_base["kreditor_name"] = chart_base["kreditor_name"].replace("", "Unbekannt")
-        if "kreditor" not in chart_base.columns:
-            chart_base["kreditor"] = chart_base.get("kreditor_name", "Unbekannt")
+        for _cb in [chart_base_all, chart_base_verknuepft]:
+            if "kreditor_name" in _cb.columns:
+                _cb["kreditor_name"] = _cb["kreditor_name"].fillna(
+                    _cb.get("kreditor", pd.Series(dtype=str)).astype(str)
+                )
+                _cb["kreditor_name"] = _cb["kreditor_name"].replace("", "Unbekannt")
+            if "kreditor" not in _cb.columns:
+                _cb["kreditor"] = _cb.get("kreditor_name", "Unbekannt")
 
-        grp_cols = [c for c in ["kreditor", "kreditor_name"] if c in chart_base.columns]
+        grp_cols = [c for c in ["kreditor", "kreditor_name"] if c in chart_base_all.columns]
 
-        if grp_cols and not chart_base.empty:
-            hat_debitor_name = "debitor_name" in chart_base.columns
-            hat_debitor      = "debitor" in chart_base.columns
-
-            def _namen_set(series):
-                namen = set()
-                for v in series.dropna():
-                    for teil in str(v).split(","):
-                        teil = teil.strip()
-                        if teil and teil not in ("nan", "NaT", ""):
-                            namen.add(teil)
-                return namen
-
-            chart_belege = chart_base.drop_duplicates(subset=["buchhaltungsbeleg"])
-            kred_agg = chart_belege.groupby(grp_cols, as_index=False).agg(
+        # ── kred_agg: für Betrag-Chart (alle Belege) ──────────────────────────
+        if grp_cols and not chart_base_all.empty:
+            chart_belege_all = chart_base_all.drop_duplicates(subset=["buchhaltungsbeleg"])
+            kred_agg = chart_belege_all.groupby(grp_cols, as_index=False).agg(
                 offener_betrag_summe=("offener_betrag", "sum")
             )
-
-            if hat_debitor_name:
-                deb_agg = chart_base.groupby(grp_cols, as_index=False).agg(
-                    anzahl_debitoren=("debitor_name", lambda x: len(_namen_set(x))),
-                    endkunden_namen=("debitor_name", lambda x: ", ".join(sorted(_namen_set(x))) or "—"),
-                )
-                kred_agg = kred_agg.merge(deb_agg, on=grp_cols, how="left")
-            elif hat_debitor:
-                deb_agg = chart_base.groupby(grp_cols, as_index=False).agg(
-                    anzahl_debitoren=("debitor", "nunique")
-                )
-                kred_agg = kred_agg.merge(deb_agg, on=grp_cols, how="left")
-
             kred_agg["betrag_fmt"] = kred_agg["offener_betrag_summe"].apply(fmt_mio)
         else:
             kred_agg = pd.DataFrame()
+
+        # ── kred_agg_deb: für Endkunden-Chart (nur verknüpfte, mit debitor_name) ─
+        def _namen_set(series):
+            namen = set()
+            for v in series.dropna():
+                for teil in str(v).split(","):
+                    teil = teil.strip()
+                    if teil and teil not in ("nan", "NaT", ""):
+                        namen.add(teil)
+            return namen
+
+        grp_cols_deb = [c for c in ["kreditor", "kreditor_name"] if c in chart_base_verknuepft.columns]
+        hat_debitor_name = "debitor_name" in chart_base_verknuepft.columns
+        hat_debitor      = "debitor" in chart_base_verknuepft.columns
+
+        if grp_cols_deb and not chart_base_verknuepft.empty and (hat_debitor_name or hat_debitor):
+            chart_belege_deb = chart_base_verknuepft.drop_duplicates(subset=["buchhaltungsbeleg"])
+            kred_agg_deb = chart_belege_deb.groupby(grp_cols_deb, as_index=False).agg(
+                offener_betrag_summe=("offener_betrag", "sum")
+            )
+            if hat_debitor_name:
+                deb_agg = chart_base_verknuepft.groupby(grp_cols_deb, as_index=False).agg(
+                    anzahl_debitoren=("debitor_name", lambda x: len(_namen_set(x))),
+                    endkunden_namen=("debitor_name", lambda x: ", ".join(sorted(_namen_set(x))) or "—"),
+                )
+            else:
+                deb_agg = chart_base_verknuepft.groupby(grp_cols_deb, as_index=False).agg(
+                    anzahl_debitoren=("debitor", "nunique")
+                )
+            kred_agg_deb = kred_agg_deb.merge(deb_agg, on=grp_cols_deb, how="left")
+            kred_agg_deb["betrag_fmt"] = kred_agg_deb["offener_betrag_summe"].apply(fmt_mio)
+        else:
+            kred_agg_deb = pd.DataFrame()
 
         suffix = f" · {selected_woche}" if selected_woche != "Alle" else ""
         col_left, col_right = st.columns(2, gap="medium")
@@ -638,7 +664,7 @@ if not detail.empty:
                 st.altair_chart((bars + text).configure_view(strokeWidth=0), use_container_width=True)
 
                 # Abgleich-Hinweis: Summe der Top-10 vs. Gesamtsumme des Zeitraums
-                _total_zeitraum  = chart_base["offener_betrag"].sum() if "offener_betrag" in chart_base.columns else 0
+                _total_zeitraum  = chart_base_all["offener_betrag"].sum() if "offener_betrag" in chart_base_all.columns else 0
                 _total_top10     = top10["offener_betrag_summe"].sum()
                 _differenz       = _total_zeitraum - _total_top10
                 _abdeckung_pct   = (_total_top10 / _total_zeitraum * 100) if _total_zeitraum else 0
@@ -654,13 +680,13 @@ if not detail.empty:
         # ── Chart 2: Top 10 Kreditoren nach Endkunden ─────────────────────────
         with col_right:
             st.markdown(f"**Top 10 Kreditoren nach Endkunden{suffix}**")
-            if not kred_agg.empty and "anzahl_debitoren" in kred_agg.columns:
-                deb_data = kred_agg.sort_values("anzahl_debitoren", ascending=False).head(10).copy()
+            if not kred_agg_deb.empty and "anzahl_debitoren" in kred_agg_deb.columns:
+                deb_data = kred_agg_deb.sort_values("anzahl_debitoren", ascending=False).head(10).copy()
 
                 tooltip_fields2 = [
                     alt.Tooltip("kreditor_name:N",    title="Kreditor"),
                     alt.Tooltip("anzahl_debitoren:Q", title="Anzahl Endkunden"),
-                    alt.Tooltip("betrag_fmt:N",        title="Offener Betrag"),
+                    alt.Tooltip("betrag_fmt:N",        title="Offener Betrag (verknüpft)"),
                 ]
                 if "endkunden_namen" in deb_data.columns:
                     tooltip_fields2.append(alt.Tooltip("endkunden_namen:N", title="Endkunden"))
@@ -693,6 +719,7 @@ if not detail.empty:
                 ).encode(text="anzahl_debitoren:Q")
 
                 st.altair_chart((bars2 + text2).configure_view(strokeWidth=0), use_container_width=True)
+                st.caption("Nur verknüpfte Belege · nicht verknüpfte haben keine Endkundenzuordnung")
             else:
                 st.info("Keine Endkundendaten verfügbar.")
 
