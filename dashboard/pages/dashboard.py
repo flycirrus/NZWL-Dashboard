@@ -127,12 +127,14 @@ with col_kern:
                             universal_newlines=True
                         )
                         
-                        # Output live mitlesen und anzeigen (scrollbarer Container, kein Seitenüberlauf)
+                        # Nur die letzten 20 Zeilen anzeigen — Fenster bleibt fix
+                        import html as _html
+                        from collections import deque
+                        log_zeilen = deque(maxlen=20)
                         for line in process.stdout:
-                            log_text += line
-                            import html as _html
+                            log_zeilen.append(line.rstrip())
                             ausgabe_placeholder.markdown(
-                                f'<div class="terminal-output-wrapper"><pre>{_html.escape(log_text)}</pre></div>',
+                                f'<div class="terminal-output-wrapper"><pre>{_html.escape(chr(10).join(log_zeilen))}</pre></div>',
                                 unsafe_allow_html=True,
                             )
                             
