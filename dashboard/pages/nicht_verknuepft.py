@@ -46,15 +46,30 @@ if not statistik.empty:
     for _, row in statistik.iterrows():
         stat[row["kennzahl"]] = row["wert"]
 
-# ── Beträge berechnen ─────────────────────────────────────────────────────────
+# ── Beträge berechnen (konsistent mit Dashboard V02) ─────────────────────────
 _betrag_verknuepft = (
     detail.drop_duplicates(subset=["buchhaltungsbeleg"])["offener_betrag"].sum()
     if not detail.empty and "buchhaltungsbeleg" in detail.columns and "offener_betrag" in detail.columns
     else 0.0
 )
+
+# Gutschriften herausfiltern — gleiche Logik wie Dashboard V02
+_grund_col_banner = "grund" if "grund" in nv_raw.columns else None
+_betrag_col_banner = "offener_betrag" if "offener_betrag" in nv_raw.columns else None
+_gut_by_grund_banner = (
+    nv_raw[_grund_col_banner].astype(str).str.strip().str.lower() == "gutschrift"
+    if _grund_col_banner else pd.Series(False, index=nv_raw.index)
+)
+_gut_by_betrag_banner = (
+    nv_raw[_betrag_col_banner] < 0
+    if _betrag_col_banner else pd.Series(False, index=nv_raw.index)
+)
+_ist_gutschrift_banner = _gut_by_grund_banner | _gut_by_betrag_banner
+_nv_ohne_gs_banner = nv_raw[~_ist_gutschrift_banner]
+
 _betrag_nicht_verknuepft = (
-    nv_raw["offener_betrag"].sum()
-    if not nv_raw.empty and "offener_betrag" in nv_raw.columns
+    _nv_ohne_gs_banner[_betrag_col_banner].sum()
+    if not _nv_ohne_gs_banner.empty and _betrag_col_banner
     else 0.0
 )
 
@@ -62,7 +77,7 @@ match_quote = stat.get("Gesamte Match-Quote", "?")
 
 st.info(
     f"**Matchquote {match_quote}** · verknüpft: **{fmt_mio(_betrag_verknuepft)}** · "
-    f"nicht verknüpft: **{fmt_mio(_betrag_nicht_verknuepft)}** (inkl. Gutschriften und Werkzeuge)"
+    f"nicht verknüpft: **{fmt_mio(_betrag_nicht_verknuepft)}** (ohne Gutschriften)"
 )
 
 # ── Aufspaltung: Werkzeuge, Gutschriften, Rest ────────────────────────────────
