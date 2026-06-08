@@ -223,6 +223,45 @@ else:
         else 0.0
     )
 
+# ── Korrigierte Match-Quote ───────────────────────────────────────────────────
+# Basis: Gesamtbetrag MINUS Werkzeuge MINUS alle Gutschriften (auch Werkzeug-Gutschriften)
+# Zähler: verknüpfte Belege (detail)
+_mq_verknuepft = (
+    detail.drop_duplicates(subset=["buchhaltungsbeleg"])["offener_betrag"].sum()
+    if not detail.empty and "buchhaltungsbeleg" in detail.columns and "offener_betrag" in detail.columns
+    else 0.0
+)
+_mq_abzug_wz   = 0.0  # Werkzeuge aus nv_raw
+_mq_abzug_gs   = 0.0  # Gutschriften aus nv_raw (alle, inkl. Werkzeug-Gutschriften)
+if not nv_raw.empty and "offener_betrag" in nv_raw.columns:
+    _branche_col_mq = "branche" if "branche" in nv_raw.columns else None
+    _grund_col_mq   = "grund"   if "grund"   in nv_raw.columns else None
+    # Werkzeuge-Maske
+    _ist_wz_mq = (
+        nv_raw[_branche_col_mq].astype(str).str.strip() == "Werkzeuge"
+        if _branche_col_mq else pd.Series(False, index=nv_raw.index)
+    )
+    # Gutschriften-Maske (grund ODER negativer Betrag)
+    _gut_grund_mq  = (
+        nv_raw[_grund_col_mq].astype(str).str.strip().str.lower() == "gutschrift"
+        if _grund_col_mq else pd.Series(False, index=nv_raw.index)
+    )
+    _gut_betrag_mq = nv_raw["offener_betrag"] < 0
+    _ist_gs_mq     = _gut_grund_mq | _gut_betrag_mq
+    # Abzüge berechnen
+    _mq_abzug_wz = nv_raw.loc[_ist_wz_mq, "offener_betrag"].sum()
+    _mq_abzug_gs = nv_raw.loc[_ist_gs_mq, "offener_betrag"].sum()  # negativ oder positiv je nach Datenlage
+
+# Bereinigter Nenner (relevante Verbindlichkeiten)
+_mq_basis = gesamt_betrag - _mq_abzug_wz - _mq_abzug_gs
+# Match-Quote = verknüpft / bereinigter Nenner
+if _mq_basis > 0:
+    _match_quote_val = _mq_verknuepft / _mq_basis * 100
+    _match_quote_str = f"{_match_quote_val:.1f} %".replace(".", ",")
+else:
+    _match_quote_str = stat.get("Gesamte Match-Quote", "?")
+    _match_quote_val = None
+
 st.markdown("### Kennzahlen")
 col1, col2, col3, col4 = st.columns(4)
 
@@ -241,8 +280,9 @@ col3.metric(
 )
 col4.metric(
     label="Match-Quote",
-    value=stat.get("Gesamte Match-Quote", "?"),
+    value=_match_quote_str,
 )
+col4.caption("Basis: OPOS ohne Werkzeuge & Gutschriften")
 # Beträge: verknüpft vs. nicht verknüpft vs. Gutschriften
 _betrag_verknuepft = (
     detail.drop_duplicates(subset=["buchhaltungsbeleg"])["offener_betrag"].sum()
