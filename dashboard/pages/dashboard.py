@@ -72,7 +72,37 @@ import os
 import subprocess
 
 col_kern, col_refresh, col_ts = st.columns([1, 1, 2])
-ausgabe_container = st.empty() # Container in voller Breite für Terminal-Output
+
+# Scrollbarer Terminal-Output-Bereich (fixe Breite, kein Seitenüberlauf)
+st.markdown("""
+<style>
+.terminal-output-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 400px;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    background: #0d1117;
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+    box-sizing: border-box;
+}
+.terminal-output-wrapper pre {
+    white-space: pre;
+    word-break: normal;
+    overflow-wrap: normal;
+    margin: 0;
+    padding: 0.75rem;
+    font-size: 0.82rem;
+    color: #e6edf3;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    line-height: 1.5;
+}
+</style>
+""", unsafe_allow_html=True)
+ausgabe_placeholder = st.empty()  # Container für Terminal-Output
 
 with col_kern:
     if os.name == "nt":
@@ -97,10 +127,14 @@ with col_kern:
                             universal_newlines=True
                         )
                         
-                        # Output live mitlesen und anzeigen
+                        # Output live mitlesen und anzeigen (scrollbarer Container, kein Seitenüberlauf)
                         for line in process.stdout:
                             log_text += line
-                            ausgabe_container.code(log_text, language="shell")
+                            import html as _html
+                            ausgabe_placeholder.markdown(
+                                f'<div class="terminal-output-wrapper"><pre>{_html.escape(log_text)}</pre></div>',
+                                unsafe_allow_html=True,
+                            )
                             
                         process.wait()
                         
