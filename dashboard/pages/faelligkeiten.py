@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
-from core.data_import import lade_ergebnis_daten, lade_ampel_status, speichere_ampel_status
+from core.data_import import lade_ergebnis_daten, lade_ampel_status, speichere_ampel_status, lade_notizen, speichere_notiz
 
 # ── Formatierung ──────────────────────────────────────────────────────────────
 def _fmt_num(value: float, decimals: int = 2) -> str:
@@ -102,6 +102,7 @@ daten        = lade_ergebnis_daten()
 detail       = daten["detail"]
 nv_raw       = daten.get("nicht_verknuepft", pd.DataFrame())
 ampel_status = lade_ampel_status()
+notizen      = lade_notizen()  # Alle gespeicherten Notizen laden
 
 if detail.empty:
     st.warning("Keine Detail-Daten geladen.")
@@ -497,22 +498,86 @@ page_rows  = belege_filtered.iloc[page_start : page_start + PAGE_SIZE]
 def _cell(col, text):
     """Zelle mit Ellipsis bei langem Text + Tooltip zum Lesen."""
     import re
-    # HTML-Tags komplett entfernen für ein valides title-Attribut
     plain = re.sub(r'<[^>]*>', '', str(text))
-    # Anführungszeichen maskieren, damit das Attribut nicht unterbrochen wird
     plain = plain.replace('"', '&quot;')
     col.markdown(
         f'<div class="tbl-cell" title="{plain}">{text}</div>',
         unsafe_allow_html=True,
     )
 
+def _notiz_btn(container, typ: str, nid: str, zeilen_idx: int, suffix: str):
+    """
+    Zeigt einen Notiz-Button (📝 / 💬) und ggf. ein Inline-Eingabefeld.
+    Gibt True zurück, wenn danach ein Rerun nötig ist.
+    """
+    key_open  = f"notiz_open_{typ}_{nid}_{zeilen_idx}_{suffix}"
+    hat_notiz = f"{typ}:{nid}" in notizen
+    icon      = "💬" if hat_notiz else "📝"
+    tooltip   = notizen[f"{typ}:{nid}"]["text"][:80] + "..." if hat_notiz and len(notizen[f"{typ}:{nid}"]["text"]) > 80 else (notizen[f"{typ}:{nid}"]["text"] if hat_notiz else "Notiz hinzufügen")
+
+    if container.button(icon, key=key_open, help=tooltip, use_container_width=False):
+        toggle_key = f"notiz_toggle_{typ}_{nid}"
+        st.session_state[toggle_key] = not st.session_state.get(toggle_key, False)
+        st.rerun()
+
+def _notiz_editor(typ: str, nid: str, label: str):
+    """
+    Zeigt das Inline-Notiz-Eingabefeld unter einer Zeile an (wenn Toggle aktiv).
+    """
+    toggle_key = f"notiz_toggle_{typ}_{nid}"
+    if not st.session_state.get(toggle_key, False):
+        return
+
+    key_nota = f"{typ}:{nid}"
+    vorhandene_notiz = notizen.get(key_nota, {}).get("text", "")
+    vorhandene_datum = notizen.get(key_nota, {}).get("datum", "")
+
+    with st.container():
+        st.markdown(
+            f"<div style='background:#f0f4fa;border-left:4px solid #1F4E79;border-radius:6px;padding:0.6rem 0.9rem;margin:0.2rem 0 0.5rem 0;'>"
+            f"<span style='font-size:0.8rem;color:#555;font-weight:600;'>📋 Notiz für {label}</span>"
+            + (f"<span style='font-size:0.72rem;color:#888;float:right;'>Gespeichert: {vorhandene_datum}</span>" if vorhandene_datum else "")
+            + "</div>",
+            unsafe_allow_html=True
+        )
+        neue_notiz = st.text_area(
+            label="",
+            value=vorhandene_notiz,
+            placeholder="Notiz hier eingeben… (leer lassen zum Löschen)",
+            height=90,
+            key=f"notiz_text_{typ}_{nid}",
+            label_visibility="collapsed",
+        )
+        btn_s, btn_d, btn_c = st.columns([1, 1, 4])
+        if btn_s.button("💾 Speichern", key=f"notiz_save_{typ}_{nid}", type="primary"):
+            # Nutzer-Name aus Session-State holen falls vorhanden
+            autor = "System"
+            try:
+                if "user" in st.session_state and st.session_state.user:
+                    autor = st.session_state.user.get("name", "System")
+            except Exception:
+                pass
+            speichere_notiz(typ, nid, neue_notiz, autor=autor)
+            notizen[key_nota] = {"text": neue_notiz, "autor": autor, "datum": "gerade eben"}
+            st.session_state[toggle_key] = False
+            st.toast(f"Notiz gespeichert!", icon="💾")
+            st.rerun()
+        if btn_d.button("🗑️ Löschen", key=f"notiz_del_{typ}_{nid}"):
+            speichere_notiz(typ, nid, "")
+            notizen.pop(key_nota, None)
+            st.session_state[toggle_key] = False
+            st.toast("Notiz gelöscht!", icon="🗑️")
+            st.rerun()
+
 for zeilen_idx, (_, row) in enumerate(page_rows.iterrows()):
-    beleg_id    = str(row["buchhaltungsbeleg"])
+    beleg_id       = str(row["buchhaltungsbeleg"])
+    kreditor_id    = str(row.get("kreditor", beleg_id))  # Kreditor-Nr als ID
+    kreditor_name  = str(row.get("kreditor_name", "—"))
     current_status = ampel_status.get(beleg_id, "keine")
 
     row_cols = table_container.columns(COL_W)
 
-    # Ampel: 3 Buttons eng nebeneinander
+    # ── Ampel: 3 Buttons eng nebeneinander ───────────────────────────────────
     with row_cols[0]:
         btn_cols = st.columns([1, 1, 1, 2])
         for i, (status_key, (emoji, label)) in enumerate(AMPEL.items()):
@@ -534,19 +599,46 @@ for zeilen_idx, (_, row) in enumerate(page_rows.iterrows()):
                 st.rerun()
 
     _cell(row_cols[1], row["nettofaelligkeit"].strftime("%d.%m.%Y"))
-    _cell(row_cols[2], f"<code>{beleg_id}</code>")
-    _cell(row_cols[3], str(row.get("kreditor_name", "—")))
+
+    # ── Belegnummer + Notiz-Button ────────────────────────────────────────────
+    with row_cols[2]:
+        b_c1, b_c2 = st.columns([3, 1])
+        _cell(b_c1, f"<code>{beleg_id}</code>")
+        _notiz_btn(b_c2, "beleg", beleg_id, zeilen_idx, "b")
+
+    # ── Kreditor + Notiz-Button ───────────────────────────────────────────────
+    with row_cols[3]:
+        k_c1, k_c2 = st.columns([4, 1])
+        _cell(k_c1, kreditor_name)
+        _notiz_btn(k_c2, "kreditor", kreditor_id, zeilen_idx, "k")
+
     _cell(row_cols[4], fmt_eur(row["offener_betrag"]))
+
+    # ── Endkunde / Grund + Notiz-Button ──────────────────────────────────────
+    with row_cols[5]:
+        if row.get("verknuepft", True):
+            endkunden_val = str(row.get("debitor_name", ""))
+            endkunden_txt = endkunden_val if endkunden_val not in ("", "nan") else "—"
+            e_c1, e_c2 = st.columns([4, 1])
+            _cell(e_c1, endkunden_txt)
+            if endkunden_txt != "—":
+                _notiz_btn(e_c2, "endkunde", endkunden_txt, zeilen_idx, "e")
+        else:
+            grund   = str(row.get("grund", ""))
+            branche = str(row.get("branche", ""))
+            tag = grund
+            if branche and branche not in ("", "nan"):
+                tag += f" · {branche}"
+            _cell(row_cols[5], f'<span style="color:#999;font-style:italic">{tag}</span>')
+
+    # ── Inline-Notiz-Editoren (werden nur angezeigt wenn Toggle aktiv) ────────
+    _notiz_editor("beleg",    beleg_id,    f"Beleg {beleg_id}")
+    _notiz_editor("kreditor", kreditor_id, kreditor_name)
     if row.get("verknuepft", True):
-        endkunden = str(row.get("debitor_name", ""))
-        _cell(row_cols[5], endkunden if endkunden not in ("", "nan") else "—")
-    else:
-        grund = str(row.get("grund", ""))
-        branche = str(row.get("branche", ""))
-        tag = f"{grund}"
-        if branche and branche not in ("", "nan"):
-            tag += f" · {branche}"
-        _cell(row_cols[5], f'<span style="color:#999;font-style:italic">{tag}</span>')
+        endkunden_val = str(row.get("debitor_name", ""))
+        if endkunden_val not in ("", "nan", "—"):
+            _notiz_editor("endkunde", endkunden_val, endkunden_val)
+
 
 st.markdown('<div class="tbl-sep" style="margin-top:0.5rem;"></div>', unsafe_allow_html=True)
 

@@ -407,3 +407,140 @@ def lade_ergebnis_daten(json_pfad: str = None) -> dict:
         return _lade_aus_json(json_pfad)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# NOTIZEN-SYSTEM  (Dual-Mode: MariaDB auf Windows · JSON-Fallback auf Mac)
+# Jede Notiz ist einem Typ + ID zugeordnet:
+#   typ = "kreditor"  → id = kreditor_nr  (z.B. "K100123")
+#   typ = "beleg"     → id = buchhaltungsbeleg (z.B. "9900012345")
+#   typ = "endkunde"  → id = debitor_name (z.B. "BMW AG")
+# ═══════════════════════════════════════════════════════════════════════════════
+
+NOTIZEN_JSON = str(Path(__file__).resolve().parent.parent / "data" / "output" / "notizen.json")
+
+
+def _ensure_notizen_table(conn):
+    """Erstellt die Notizen-Tabelle in MariaDB falls nicht vorhanden."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS beleg_notizen (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                typ         VARCHAR(50)   NOT NULL,
+                nid         VARCHAR(500)  NOT NULL,
+                notiz_text  TEXT          NOT NULL,
+                autor       VARCHAR(100)  DEFAULT NULL,
+                geaendert_am DATETIME     DEFAULT CURRENT_TIMESTAMP
+                    ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_typ_nid (typ, nid(200))
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """)
+        conn.commit()
+
+
+def lade_notizen() -> dict:
+    """
+    Lädt alle Notizen.
+    Windows → MariaDB-Tabelle 'beleg_notizen'
+    Mac     → JSON-Datei (Fallback)
+    Gibt dict zurück: { "beleg:9900012345": {"text": "...", "autor": "...", "datum": "..."} }
+    """
+    if os.name == "nt":
+        conn = _get_db_conn()
+        if conn:
+            try:
+                _ensure_notizen_table(conn)
+                df = pd.read_sql(
+                    "SELECT typ, nid, notiz_text, autor, geaendert_am FROM beleg_notizen",
+                    conn,
+                )
+                conn.close()
+                result = {}
+                for _, r in df.iterrows():
+                    key = f"{r['typ']}:{r['nid']}"
+                    result[key] = {
+                        "text":  r["notiz_text"],
+                        "autor": r["autor"] or "System",
+                        "datum": str(r["geaendert_am"])[:16] if r["geaendert_am"] else "",
+                    }
+                return result
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
+    # Fallback: JSON
+    if os.path.exists(NOTIZEN_JSON):
+        try:
+            with open(NOTIZEN_JSON, "r", encoding="utf-8") as f:
+                daten = json.load(f)
+                if isinstance(daten, dict):
+                    return daten
+        except Exception:
+            pass
+    return {}
+
+
+def speichere_notiz(typ: str, nid: str, text: str, autor: str = "System") -> bool:
+    """
+    Speichert oder löscht eine Notiz für einen bestimmten Typ + ID.
+    typ  : "kreditor" | "beleg" | "endkunde"
+    nid  : eindeutige ID
+    text : Notiztext (leerer String = Notiz löschen)
+    Windows → MariaDB (UPSERT) | Mac → JSON
+    """
+    import datetime
+
+    if os.name == "nt":
+        conn = _get_db_conn()
+        if conn:
+            try:
+                _ensure_notizen_table(conn)
+                with conn.cursor() as cur:
+                    if text.strip() == "":
+                        # Löschen
+                        cur.execute(
+                            "DELETE FROM beleg_notizen WHERE typ=%s AND nid=%s",
+                            (typ, nid),
+                        )
+                    else:
+                        # UPSERT: einfügen oder aktualisieren
+                        cur.execute("""
+                            INSERT INTO beleg_notizen (typ, nid, notiz_text, autor)
+                            VALUES (%s, %s, %s, %s)
+                            ON DUPLICATE KEY UPDATE
+                                notiz_text   = VALUES(notiz_text),
+                                autor        = VALUES(autor),
+                                geaendert_am = NOW()
+                        """, (typ, nid, text.strip(), autor))
+                    conn.commit()
+                conn.close()
+                return True
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
+    # Fallback: JSON
+    key = f"{typ}:{nid}"
+    notizen = lade_notizen()
+    if text.strip() == "":
+        notizen.pop(key, None)
+    else:
+        notizen[key] = {
+            "text":  text.strip(),
+            "autor": autor,
+            "datum": datetime.datetime.now().strftime("%d.%m.%Y %H:%M"),
+        }
+    try:
+        os.makedirs(os.path.dirname(NOTIZEN_JSON), exist_ok=True)
+        with open(NOTIZEN_JSON, "w", encoding="utf-8") as f:
+            json.dump(notizen, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception:
+        return False
+
+
+def loesche_notiz(typ: str, nid: str) -> bool:
+    """Löscht eine Notiz für einen bestimmten Typ + ID."""
+    return speichere_notiz(typ, nid, "")
