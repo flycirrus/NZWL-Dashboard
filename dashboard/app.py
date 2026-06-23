@@ -376,62 +376,44 @@ if st.session_state.user is None:
     # Login Screen
     st.title("NZWL Dashboard Login")
 
-    # ── Demo / Under-Construction Banner ──────────────────────────────────────
+    # ── Version Badge ──────────────────────────────────────────────────────────
     st.markdown("""
     <div style="
-        border: 3px solid #F59E0B;
+        border: 1px solid rgba(31,78,121,0.25);
         border-radius: 10px;
-        background: repeating-linear-gradient(
-            -45deg,
-            #FEF3C7,
-            #FEF3C7 14px,
-            #FFFBEB 14px,
-            #FFFBEB 28px
-        );
-        padding: 0;
+        background: linear-gradient(135deg, rgba(31,78,121,0.06) 0%, rgba(46,117,182,0.08) 100%);
+        padding: 14px 24px;
         margin-bottom: 1.5rem;
-        overflow: hidden;
-        box-shadow: 0 4px 12px rgba(245,158,11,0.25);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 2px 8px rgba(31,78,121,0.08);
     ">
-        <div style="
-            background: #F59E0B;
-            color: #1C1917;
-            text-align: center;
-            font-weight: 800;
-            font-size: 0.75rem;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            padding: 4px 0;
-        ">⚠️ &nbsp; ACHTUNG &nbsp; ⚠️</div>
-        <div style="
-            background: rgba(255,255,255,0.82);
-            padding: 16px 24px;
-            text-align: center;
-        ">
-            <span style="font-size: 1.6rem;">🚧</span>
-            <span style="
-                display: block;
-                font-size: 1.15rem;
+        <span style="font-size: 1.5rem; flex-shrink: 0;">💶</span>
+        <div>
+            <div style="
+                font-size: 1.05rem;
                 font-weight: 700;
-                color: #92400E;
-                margin: 4px 0 2px;
-                letter-spacing: 0.03em;
-            ">DEMO-SYSTEM · IN ENTWICKLUNG</span>
-            <span style="
-                font-size: 0.9rem;
-                color: #78350F;
-            ">Dieses System befindet sich im Testbetrieb. &nbsp;|&nbsp; Testing &amp; Development only — not for productive use.</span>
+                color: #1F4E79;
+                letter-spacing: 0.02em;
+            ">MVP Version 1</div>
+            <div style="
+                font-size: 0.82rem;
+                color: #4a6fa5;
+                margin-top: 2px;
+            ">NZWL Zahlungsplanung &amp; Liquiditätssteuerung</div>
         </div>
         <div style="
-            background: #F59E0B;
-            color: #1C1917;
-            text-align: center;
-            font-weight: 800;
-            font-size: 0.75rem;
-            letter-spacing: 0.2em;
+            margin-left: auto;
+            background: #1F4E79;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
-            padding: 4px 0;
-        ">🔧 &nbsp; TOOL UNDER CONSTRUCTION &nbsp; 🔧</div>
+            padding: 4px 12px;
+            border-radius: 20px;
+        ">v1.0</div>
     </div>
     """, unsafe_allow_html=True)
     # ──────────────────────────────────────────────────────────────────────────
