@@ -438,11 +438,11 @@ else:
         "Fälligkeiten V.02":        str(_pages_dir / "faelligkeiten_w1.py"),
         "Faelligkeiten V01 (alt)":  str(_pages_dir / "faelligkeiten.py"),
         "Kreditor-Debitor":         str(_pages_dir / "offene_posten.py"),
-        "Nicht verknüpft":          str(_pages_dir / "nicht_verknuepft.py"),
         "Überfällig-Analyse":       str(_pages_dir / "ueberfaellig_analyse.py"),
         "Zahlungsplanung":           str(_pages_dir / "zahlungsplanung.py"),
         "Liquiditaet":               str(_pages_dir / "liquiditaet.py"),
         "Berichte":                  str(_pages_dir / "berichte.py"),
+        "Nicht verknüpft":          str(_pages_dir / "nicht_verknuepft.py"),
     }
     
     if st.session_state.role == "admin":
@@ -488,11 +488,11 @@ else:
             "Fälligkeiten V.02":       "Fälligkeiten",
             "Faelligkeiten V01 (alt)": "Fälligkeiten",
             "Kreditor-Debitor":        "Offene Posten",
-            "Nicht verknüpft":         "Offene Posten",
             "Überfällig-Analyse":      "Offene Posten",
-            "Zahlungsplanung":         "Planung",
-            "Liquiditaet":             "Planung",
-            "Berichte":                "Berichte",
+            "Zahlungsplanung":         "Phase 3",
+            "Liquiditaet":             "Phase 3",
+            "Berichte":                "Phase 3",
+            "Nicht verknüpft":         "System",
             "Admin-Bereich":           "System",
             "Cron-Status":             "System",
         }
