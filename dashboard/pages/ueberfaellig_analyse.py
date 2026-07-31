@@ -156,9 +156,13 @@ if not nv_raw.empty and "nettofaelligkeit" in nv_raw.columns:
         belege = pd.concat([belege, nv[belege.columns]], ignore_index=True)
 
 # ── Überfälligkeit berechnen ──────────────────────────────────────────────────
-heute = pd.Timestamp.now().normalize()
+# WICHTIG: "Überfällig" identisch zur Fälligkeiten-Seite definiert =
+# fällig VOR Montag dieser Woche (heute_montag). So stimmt die Gesamtsumme
+# mit der "Überfällig"-Kachel auf der Fälligkeiten-Seite überein.
+heute        = pd.Timestamp.now().normalize()
+heute_montag = heute - pd.Timedelta(days=heute.weekday())
 belege["tage_ueberfaellig"] = (heute - belege["nettofaelligkeit"]).dt.days
-ueberfaellig = belege[belege["tage_ueberfaellig"] > 0].copy()
+ueberfaellig = belege[belege["nettofaelligkeit"] < heute_montag].copy()
 
 # ── Zeitstempel ───────────────────────────────────────────────────────────────
 zeitstempel = "—"
