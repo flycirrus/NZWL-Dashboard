@@ -80,7 +80,7 @@ st.markdown("""
             </span>
             <span style="font-size:0.85rem;color:#6B7280;">
                 Eine überarbeitete Version ist verfügbar: &nbsp;
-                <strong style="color:#1F4E79;">→ Faelligkeiten V02</strong> in der linken Navigation.
+                <strong style="color:#1F4E79;">→ Fälligkeiten V.02</strong> in der linken Navigation.
             </span>
         </div>
     </div>

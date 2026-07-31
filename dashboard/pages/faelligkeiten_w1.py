@@ -371,7 +371,7 @@ total_betrag = belege["offener_betrag"].sum()
 st.markdown(f"""
 <div class="page-hero">
   <div>
-    <h1>📅 Fälligkeiten – Version 02</h1>
+    <h1>📅 Fälligkeiten – V.02</h1>
     <p>Was muss wann bezahlt werden? · NZWL Leipzig &amp; ZWL Slovakia</p>
   </div>
   <div style="display:flex;gap:0.8rem;align-items:center;">

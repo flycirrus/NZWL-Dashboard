@@ -433,9 +433,9 @@ else:
     # Navigation configuration (absolute paths)
     _pages_dir = Path(__file__).parent / "pages"
     pages = {
-        "Dashboard V02":            str(_pages_dir / "dashboard_w1.py"),
+        "Dashboard V.02":            str(_pages_dir / "dashboard_w1.py"),
         "Dashboard V01 (alt)":      str(_pages_dir / "dashboard.py"),
-        "Faelligkeiten V02":        str(_pages_dir / "faelligkeiten_w1.py"),
+        "Fälligkeiten V.02":        str(_pages_dir / "faelligkeiten_w1.py"),
         "Faelligkeiten V01 (alt)":  str(_pages_dir / "faelligkeiten.py"),
         "Kreditor-Debitor":         str(_pages_dir / "offene_posten.py"),
         "Nicht verknüpft":          str(_pages_dir / "nicht_verknuepft.py"),
@@ -482,9 +482,9 @@ else:
 
         # ── Navigation ───────────────────────────────────────────────────────
         NAV_GROUPS = {
-            "Dashboard V02":           "Analyse",
+            "Dashboard V.02":           "Analyse",
             "Dashboard V01 (alt)":     "Analyse",
-            "Faelligkeiten V02":       "Fälligkeiten",
+            "Fälligkeiten V.02":       "Fälligkeiten",
             "Faelligkeiten V01 (alt)": "Fälligkeiten",
             "Kreditor-Debitor":        "Offene Posten",
             "Nicht verknüpft":         "Offene Posten",
